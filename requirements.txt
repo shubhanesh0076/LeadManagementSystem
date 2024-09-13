@@ -1,0 +1,9 @@
+django==5.0.6
+djangorestframework==3.15.2
+python-dotenv==1.0.1
+psycopg2-binary==2.9.9
+djangorestframework-simplejwt==5.3.1
+pandas==2.2.2
+openpyxl==3.1.5
+
+# https://drawsql.app/teams/new-redhat-router/diagrams/lms

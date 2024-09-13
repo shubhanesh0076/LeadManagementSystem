@@ -1,0 +1,92 @@
+[
+    {
+        "role_name": "admin",
+        "method": "GET",
+        "endpoint": "/api/v1/users/"
+    },
+    {
+        "role_name": "admin",
+        "method": "POST",
+        "endpoint": "/api/v1/users/"
+    },
+    {
+        "role_name": "admin",
+        "method": "PATCH",
+        "endpoint": "/api/v1/users/"
+    },
+    {
+        "role_name": "admin",
+        "method": "DELETE",
+        "endpoint": "/api/v1/users/"
+    },
+    {
+        "role_name": "admin",
+        "method": "POST",
+        "endpoint": "/api/v1/users/logout/"
+    },
+    {
+        "role_name": "admin",
+        "method": "GET",
+        "endpoint": "/api/v1/roles/"
+    },
+    {
+        "role_name": "admin",
+        "method": "POST",
+        "endpoint": "/api/v1/roles/"
+    },
+    {
+        "role_name": "admin",
+        "method": "PATCH",
+        "endpoint": "/api/v1/roles/"
+    },
+    {
+        "role_name": "admin",
+        "method": "DELETE",
+        "endpoint": "/api/v1/roles/"
+    },
+    {
+        "role_name": "admin",
+        "method": "GET",
+        "endpoint": "/api/v1/roles/permissions/"
+    },
+    {
+        "role_name": "admin",
+        "method": "POST",
+        "endpoint": "/api/v1/roles/permissions/"
+    },
+    {
+        "role_name": "admin",
+        "method": "POST",
+        "endpoint": "/api/v1/roles/assign-permissions-to-role/"
+    },
+    {
+        "role_name": "admin",
+        "method": "POST",
+        "endpoint": "/api/v1/roles/assign-role-to-user/"
+    },
+    {
+        "role_name": "admin",
+        "method": "POST",
+        "endpoint": "/api/v1/roles/un-assign-role-to-user/"
+    },
+    {
+        "role_name": "counsellor",
+        "method": "GET",
+        "endpoint": "/api/v1/roles/testing-v1/"
+    },
+    {
+        "role_name": "counsellor",
+        "method": "POST",
+        "endpoint": "/api/v1/roles/testing-v2/"
+    },
+    {
+        "role_name": "bdms",
+        "method": "GET",
+        "endpoint": "/api/v1/roles/testing-v3/"
+    },
+    {
+        "role_name": "bdms",
+        "method": "GET",
+        "endpoint": "/api/v1/roles/testing-v6/"
+    }
+]

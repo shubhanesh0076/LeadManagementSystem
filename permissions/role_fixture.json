@@ -1,0 +1,18 @@
+[
+    {
+        "role_name": "admin",
+        "description": "This is the admin user."
+    },
+    {
+        "role_name": "counsellor",
+        "description": "This is the counsellor user."
+    },
+    {
+        "role_name": "bdms",
+        "description": "This is the bdms user."
+    },
+    {
+        "role_name": "college",
+        "description": "This is the college user."
+    }
+]

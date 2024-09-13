@@ -1,0 +1,105 @@
+[
+    {
+        "permission_name": "User list",
+        "method": "GET",
+        "endpoint": "/api/v1/users/",
+        "description": "This is the api of User list."
+    },
+    {
+        "permission_name": "Create User",
+        "method": "POST",
+        "endpoint": "/api/v1/users/",
+        "description": "This API is used for create the user."
+    },
+    {
+        "permission_name": "Update User",
+        "method": "PATCH",
+        "endpoint": "/api/v1/users/",
+        "description": "This is the API for update user details."
+    },
+    {
+        "permission_name": "Delete User",
+        "method": "DELETE",
+        "endpoint": "/api/v1/users/",
+        "description": "This is the API for delete user."
+    },
+    {
+        "permission_name": "Logout User",
+        "method": "POST",
+        "endpoint": "/api/v1/users/logout/",
+        "description": "This is the API for logout from account."
+    },
+    {
+        "permission_name": "Role List",
+        "method": "GET",
+        "endpoint": "/api/v1/roles/",
+        "description": "This is the API for role list."
+    },
+    {
+        "permission_name": "Create Role",
+        "method": "POST",
+        "endpoint": "/api/v1/roles/",
+        "description": "This is the API for create role."
+    },
+    {
+        "permission_name": "Update Role",
+        "method": "PATCH",
+        "endpoint": "/api/v1/roles/",
+        "description": "This is the API for update role."
+    },
+    {
+        "permission_name": "Delete Role",
+        "method": "DELETE",
+        "endpoint": "/api/v1/roles/",
+        "description": "This is the API for Delete role."
+    },
+    {
+        "permission_name": "Permissions list",
+        "method": "GET",
+        "endpoint": "/api/v1/roles/permissions/",
+        "description": "This is the API for Permission List."
+    },
+    {
+        "permission_name": "Create Permissions",
+        "method": "POST",
+        "endpoint": "/api/v1/roles/permissions/",
+        "description": "This is the API for Create Permission."
+    },
+    {
+        "permission_name": "Role Permissions Mapping",
+        "method": "POST",
+        "endpoint": "/api/v1/roles/assign-permissions-to-role/",
+        "description": "This is the API for Role Permission Mapping."
+    },
+    {
+        "permission_name": "Assign Role To User",
+        "method": "POST",
+        "endpoint": "/api/v1/roles/assign-role-to-user/",
+        "description": "This is the API for Assign role to the user."
+    },
+    {
+        "permission_name": "Un-assign Role To User",
+        "method": "POST",
+        "endpoint": "/api/v1/roles/un-assign-role-to-user/",
+        "description": "This is the API for Un-Assign role to the user."
+    },
+    {
+        "permission_name": "Testing 1",
+        "method": "GET",
+        "endpoint": "/api/v1/roles/testing-v1/",
+        "description": "This is the API for Un-Assign role to the user."
+    },
+    {
+        "permission_name": "Testing 2",
+        "method": "POST",
+        "endpoint": "/api/v1/roles/testing-v2/",
+        "description": "This is the API for Un-Assign role to the user."
+    },
+    {
+        "permission_name": "Testing 3",
+        "method": "GET",
+        "endpoint": "/api/v1/roles/testing-v3/",
+        "description": "This is the API for Un-Assign role to the user."
+    }
+    
+]
