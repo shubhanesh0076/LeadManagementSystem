@@ -2,14 +2,19 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from utilities import utils as ut
+from utilities import pagination as pn
 from info_bridge.models import DataBridge
+from leads.models import StudentLeads, ParentsInfo
+from locations.models import Address
 from permissions.custom_permissions import CustomPermission
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from info_bridge.apis.serializers import DataBridgeSerializer
+from info_bridge.apis.serializers import DataBridgeSerializer, DataBridgeListSerializer
 from info_bridge.apis.upload_service import DataProcessor
 from utilities.custom_exceptions import UnexpectedError
 from django.db import transaction
 from django.db.models import F
+from rest_framework.exceptions import NotFound
+from django.core.exceptions import ObjectDoesNotExist
 
 
 class DataBridgeAPIView(APIView):
@@ -19,6 +24,26 @@ class DataBridgeAPIView(APIView):
     ]  # check for user is autnenticated or not.
     permission_classes = [CustomPermission]  # check for user has permissions or not
     data_bridge_serializer = DataBridgeSerializer
+    data_bridge_list_serializer_class = DataBridgeListSerializer
+
+    def get(self, request):
+        data_bridge_qs = DataBridge.objects.all().order_by("-uploaded_by")
+
+        try:
+            paginated_user_qs = pn.paginate_queryset(data_bridge_qs, request)
+        except NotFound:
+            payload = ut.get_payload(request, detail=[], message="File info list.")
+            return Response(data=payload, status=status.HTTP_200_OK)
+        serialized_user_qs = self.data_bridge_list_serializer_class(
+            paginated_user_qs, many=True
+        ).data
+        payload = ut.get_payload(
+            request,
+            detail=serialized_user_qs,
+            message="File info list",
+            extra_information=pn.get_paginated_response(data=serialized_user_qs),
+        )
+        return Response(data=payload, status=status.HTTP_200_OK)
 
     def post(self, request):
         data = request.data
@@ -36,21 +61,24 @@ class DataBridgeAPIView(APIView):
 
         deserialize_data = self.data_bridge_serializer(data=data)
         if deserialize_data.is_valid(raise_exception=True):
-
             try:
                 databridge_qs = DataBridge.objects.filter(file_name=file_name)
 
                 if not databridge_qs.exists():
                     with transaction.atomic():
-                        df_count = DataProcessor.process_upload_file(upload_file=file)
-                        DataBridge.objects.create(
+                        data_bridge_obj = DataBridge.objects.create(
                             source=source,
                             sub_source=sub_source,
                             year=year,
                             uploaded_by=uploaded_by,
                             file_name=file_name,
-                            lead_count=df_count,
                         )
+                        # print("data", data_bridge_obj, databridge_qs)                        
+                        df_count = DataProcessor.process_upload_file(
+                            upload_file=file, uploaded_id=data_bridge_obj.id
+                        )
+                        data_bridge_obj.lead_count = df_count
+                        data_bridge_obj.save()
 
                 else:
                     payload = ut.get_payload(
@@ -72,6 +100,59 @@ class DataBridgeAPIView(APIView):
             request, message="Leads has been uploaded, successfully."
         )
         return Response(data=payload, status=status.HTTP_200_OK)
+
+    def delete(self, request):
+        file_name = request.data.get("file_name", None)
+        if not file_name:
+            payload = ut.get_payload(request, message="Filename can not be none.")
+            return Response(data=payload, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            with transaction.atomic():
+                try:
+                    data_bridge_obj = DataBridge.objects.get(file_name=file_name)
+                    student_leads_qs = StudentLeads.objects.filter(
+                        uploaded_id=data_bridge_obj.id, is_attempted=False
+                    )
+
+                    if student_leads_qs.exists():
+                        student_leads_ids = student_leads_qs.values_list(
+                            "id", flat=True
+                        )
+                        student_leads_count = student_leads_ids.count()
+                        ParentsInfo.objects.filter(
+                            lead_id__in=student_leads_ids
+                        ).delete()
+                        Address.objects.filter(lead_id__in=student_leads_ids).delete()
+
+                        if student_leads_count == data_bridge_obj.lead_count:
+                            student_leads_qs.delete()
+                            data_bridge_obj.delete()
+
+                        else:
+                            data_bridge_obj.lead_count = (
+                                data_bridge_obj.lead_count - student_leads_count
+                            )
+                            data_bridge_obj.save()
+                            student_leads_qs.delete()
+
+                    payload = ut.get_payload(
+                        request,
+                        detail={},
+                        message="File and related leads has been deleted successfully.",
+                    )
+                    return Response(data=payload, status=status.HTTP_204_NO_CONTENT)
+
+                except ObjectDoesNotExist:
+                    raise ObjectDoesNotExist("Object doesn't exists.")
+
+        except ObjectDoesNotExist as obj_msg:
+            payload = ut.get_payload(request, message=str(obj_msg))
+            return Response(data=payload, status=status.HTTP_404_NOT_FOUND)
+
+        except UnexpectedError as ue:
+            payload = ut.get_payload(request, message=str(ue))
+            return Response(data=payload, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class DataBridgeAppendAPIView(APIView):
@@ -105,9 +186,11 @@ class DataBridgeAppendAPIView(APIView):
             return Response(payload, status=status.HTTP_400_BAD_REQUEST)
 
         if not isinstance(is_extend_entries, bool):
-            payload = ut.get_payload(request, message="extended field should be bool not str or None.")
+            payload = ut.get_payload(
+                request, message="extended field should be bool not str or None."
+            )
             return Response(payload, status=status.HTTP_400_BAD_REQUEST)
-        
+
         if not is_extend_entries:
             payload = ut.get_payload(request, message="Is extend should be True.")
             return Response(payload, status=status.HTTP_400_BAD_REQUEST)
@@ -117,14 +200,16 @@ class DataBridgeAppendAPIView(APIView):
 
             if databridge_qs.exists() and is_extend_entries:
                 with transaction.atomic():
-                    df_count = DataProcessor.process_upload_file(upload_file=file)
-                    print("DF COUNT: ", df_count)
+                    df_count = DataProcessor.process_upload_file(
+                        upload_file=file, uploaded_id=databridge_qs[0].id
+                    )
                     databridge_qs.update(
                         lead_count=F("lead_count") + df_count
                     )  # Increment lead_count using F expressions (to avoid race conditions)
-                
+
                 payload = ut.get_payload(
-                    request, message=f"Leads has been appended successfully into {file_name} file."
+                    request,
+                    message=f"Leads has been appended successfully into {file_name} file.",
                 )
                 return Response(data=payload, status=status.HTTP_200_OK)
 
