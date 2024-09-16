@@ -16,5 +16,5 @@ class DataBridge(models.Model):
     year=models.IntegerField(choices=YEAR_CHOICE, default=current_year)
     lead_count=models.BigIntegerField(default=0)
     uploaded_by=models.ForeignKey(User, on_delete=models.CASCADE, related_name='upload_lead', default=None)
-    laod_uploaded_at=models.DateTimeField(auto_now_add=True)
+    lead_uploaded_at=models.DateTimeField(auto_now_add=True)
     

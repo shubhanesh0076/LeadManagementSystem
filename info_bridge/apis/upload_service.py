@@ -13,12 +13,12 @@ class DataProcessor:
 
     @staticmethod
     def get_total_rows(file_path):
-        workbook = load_workbook(file_path, read_only=True)
-        sheet = workbook.active
-        return sheet.max_row
+        df = pd.read_excel(file_path, usecols=[0])  # Read only the first column
+        return len(df)
+
 
     @staticmethod
-    def process_excel_in_chunks(file_path):
+    def process_excel_in_chunks(file_path: str, uploaded_id: int):
         chunk_size = 100000
         start_row = 0
         total_rows = DataProcessor.get_total_rows(file_path)
@@ -33,12 +33,12 @@ class DataProcessor:
             )
             if df_chunk.empty:
                 break
-            DataProcessor._process_lead_data(df_chunk)
+            DataProcessor._process_lead_data(df_chunk, uploaded_id)
             start_row += chunk_size
         return total_rows
 
     @staticmethod
-    def process_upload_file(upload_file):
+    def process_upload_file(upload_file: str, uploaded_id: int):
         try:
             file_type = upload_file.name.split(".")[1].upper()
 
@@ -46,7 +46,7 @@ class DataProcessor:
                 data = pd.read_csv(upload_file)
 
             elif file_type == "XLSX":
-                return DataProcessor.process_excel_in_chunks(upload_file)
+                return DataProcessor.process_excel_in_chunks(upload_file, uploaded_id)
 
             else:
                 raise ValueError("Unsupported file type")
@@ -55,7 +55,7 @@ class DataProcessor:
             raise UnexpectedError(message=str(e))
 
     @staticmethod
-    def _process_lead_data(dataframe):
+    def _process_lead_data(dataframe, uploaded_id: int):
 
         with transaction.atomic():
             leads_to_create = []
@@ -84,6 +84,7 @@ class DataProcessor:
                         if row.get("school", None)
                         else None
                     ),
+                    uploaded_id=uploaded_id
                 )
 
                 student_parents_info = ParentsInfo(

@@ -22,6 +22,7 @@ urlpatterns = [
     path('api/v1/users/', include('accounts.api.urls')),
     path('api/v1/roles/', include('permissions.api.urls')),
     path('api/v1/uploads/', include('info_bridge.apis.urls')),
-    path('api/v1/locations/', include('locations.apis.urls'))
+    path('api/v1/locations/', include('locations.apis.urls')),
+    path('api/v1/leads/', include('leads.apis.urls'))
 
 ]

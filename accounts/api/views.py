@@ -208,10 +208,15 @@ class UsersAPIView(APIView):
         """
 
         # # Prefetch roles for each user and store them in the 'roles' attribute
-        from leads.models import StudentLeads
+        from leads.models import StudentLeads, ParentsInfo
+        from locations.models import Address
+        from info_bridge.models import DataBridge
+        ParentsInfo.objects.all().delete()
+        Address.objects.all().delete()
+        StudentLeads.objects.all().delete()
+        DataBridge.objects.all().delete()
 
-        lead_count = StudentLeads.objects.count()
-        print("Lead Count: ", lead_count)
+        # print("Lead Count: ", lead_count)
         slug = request.GET.get("slug", None)
         if not slug:
             users_with_roles = User.objects.prefetch_related(
