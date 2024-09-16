@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from utilities import utils as ut
 from utilities import pagination as pn
+from utilities import const
 from info_bridge.models import DataBridge
 from leads.models import StudentLeads, ParentsInfo
 from locations.models import Address
@@ -15,6 +16,7 @@ from django.db import transaction
 from django.db.models import F
 from rest_framework.exceptions import NotFound
 from django.core.exceptions import ObjectDoesNotExist
+from django.shortcuts import get_object_or_404
 
 
 class DataBridgeAPIView(APIView):
@@ -25,6 +27,11 @@ class DataBridgeAPIView(APIView):
     permission_classes = [CustomPermission]  # check for user has permissions or not
     data_bridge_serializer = DataBridgeSerializer
     data_bridge_list_serializer_class = DataBridgeListSerializer
+
+    def get_file_extension(self, filename: str):
+        if not filename:
+            return ValueError("File can not be None.")
+        return filename.split(".")[-1].upper()
 
     def get(self, request):
         data_bridge_qs = DataBridge.objects.all().order_by("-uploaded_by")
@@ -73,7 +80,7 @@ class DataBridgeAPIView(APIView):
                             uploaded_by=uploaded_by,
                             file_name=file_name,
                         )
-                        # print("data", data_bridge_obj, databridge_qs)                        
+
                         df_count = DataProcessor.process_upload_file(
                             upload_file=file, uploaded_id=data_bridge_obj.id
                         )
@@ -107,34 +114,34 @@ class DataBridgeAPIView(APIView):
             payload = ut.get_payload(request, message="Filename can not be none.")
             return Response(data=payload, status=status.HTTP_400_BAD_REQUEST)
 
+        if self.get_file_extension(file_name) not in const.files_extensions:
+            payload = ut.get_payload(request, message="Invalid file extension.")
+            return Response(data=payload, status=status.HTTP_400_BAD_REQUEST)
+
         try:
             with transaction.atomic():
                 try:
-                    data_bridge_obj = DataBridge.objects.get(file_name=file_name)
+                    data_bridge_obj = get_object_or_404(DataBridge, file_name=file_name)
                     student_leads_qs = StudentLeads.objects.filter(
                         uploaded_id=data_bridge_obj.id, is_attempted=False
                     )
-
-                    if student_leads_qs.exists():
-                        student_leads_ids = student_leads_qs.values_list(
-                            "id", flat=True
-                        )
-                        student_leads_count = student_leads_ids.count()
+                    lead_count = student_leads_qs.count()
+                    if lead_count > 0:
+                        # Delete related ParentsInfo and Address in bulk
                         ParentsInfo.objects.filter(
-                            lead_id__in=student_leads_ids
+                            lead_id__in=student_leads_qs
                         ).delete()
-                        Address.objects.filter(lead_id__in=student_leads_ids).delete()
+                        Address.objects.filter(lead_id__in=student_leads_qs).delete()
 
-                        if student_leads_count == data_bridge_obj.lead_count:
-                            student_leads_qs.delete()
+                        # Delete student leads in bulk
+                        student_leads_qs.delete()
+
+                        # Update lead count
+                        data_bridge_obj.lead_count -= lead_count
+                        data_bridge_obj.save()
+
+                        if data_bridge_obj.lead_count == 0:
                             data_bridge_obj.delete()
-
-                        else:
-                            data_bridge_obj.lead_count = (
-                                data_bridge_obj.lead_count - student_leads_count
-                            )
-                            data_bridge_obj.save()
-                            student_leads_qs.delete()
 
                     payload = ut.get_payload(
                         request,
@@ -146,8 +153,8 @@ class DataBridgeAPIView(APIView):
                 except ObjectDoesNotExist:
                     raise ObjectDoesNotExist("Object doesn't exists.")
 
-        except ObjectDoesNotExist as obj_msg:
-            payload = ut.get_payload(request, message=str(obj_msg))
+        except ObjectDoesNotExist:
+            payload = ut.get_payload(request, message="Related file doesn't exists.")
             return Response(data=payload, status=status.HTTP_404_NOT_FOUND)
 
         except UnexpectedError as ue:

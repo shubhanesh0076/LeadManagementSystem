@@ -7,4 +7,5 @@ app_name='uploads'
 urlpatterns = [
     path('', DataBridgeAPIView.as_view(), name='data-bridge'),
     path('append/', DataBridgeAppendAPIView.as_view(), name='data-bridge-append'),
+    # path('delete/', DataBridgeAppendAPIView.as_view(), name='data-bridge-append'),
 ]
