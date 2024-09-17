@@ -12,6 +12,11 @@ class Country(models.Model):
 
     def __str__(self):
         return self.name
+    
+    class Meta:
+        indexes = [
+            models.Index(fields=['name']),
+        ]
 
 
 class State(models.Model):
@@ -22,6 +27,11 @@ class State(models.Model):
 
     def __str__(self):
         return self.name
+    
+    class Meta:
+        indexes = [
+            models.Index(fields=['name']),
+        ]
 
 
 class City(models.Model):
@@ -31,6 +41,10 @@ class City(models.Model):
     def __str__(self):
         return self.name
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['name']),
+        ]
 
 class Address(models.Model):
     lead = models.OneToOneField(
@@ -54,3 +68,12 @@ class Address(models.Model):
     postal_code = models.CharField(
         max_length=20, null=True, blank=True
     )  # Postal code of the address
+
+
+    # class Meta:
+    #     indexes = [
+    #         models.Index(fields=['lead']),
+    #         models.Index(fields=['country']),
+    #         models.Index(fields=['state']),
+    #         models.Index(fields=['city']),
+    #     ]

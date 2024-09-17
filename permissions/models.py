@@ -43,3 +43,11 @@ class RoleCustomPermissionMapping(models.Model):
         on_delete=models.CASCADE,
         related_name="related_custom_permission",
     )
+
+# class LeadsPermissins(models.Model):
+#     source=models.CharField()
+#     sub_source=models.CharField()
+#     country=models.CharField()
+#     state=models.CharField()
+#     city=models.CharField()
+#     school=models.CharField()

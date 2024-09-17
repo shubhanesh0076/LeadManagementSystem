@@ -288,7 +288,7 @@ class AssignPermissionToRoleAPIView(APIView):
             return Response(data=payload, status=status.HTTP_404_NOT_FOUND)
 
         payload = utils.get_payload(
-            request, detail=[], message="Role successfully assoigned to permissions."
+            request, detail=[], message="Role successfully assigned to permissions."
         )
         return Response(data=payload, status=status.HTTP_200_OK)
 

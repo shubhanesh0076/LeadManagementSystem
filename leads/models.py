@@ -55,6 +55,11 @@ class StudentLeads(models.Model):
     def __str__(self) -> str:
         return f"{self.first_name} {self.last_name}"
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['school']),
+        ]
+
 
 class ParentsInfo(models.Model):
     lead = models.OneToOneField(
@@ -97,3 +102,17 @@ class FollowUp(models.Model):
 
     def __str__(self):
         return f"Follow-up by {self.follow_up_by} on Lead {self.lead.id}"
+
+
+
+class OptimizedAddressView(models.Model):
+    source = models.CharField(max_length=50)
+    sub_source = models.CharField(max_length=50)
+    country_name = models.CharField(max_length=100)
+    state_name = models.CharField(max_length=100)
+    city_name = models.CharField(max_length=100)
+    school = models.CharField(max_length=400, null=True, blank=True)
+
+    class Meta:
+        managed = False  # This is a view, not a table
+        db_table = "optimized_address_view"

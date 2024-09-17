@@ -84,22 +84,11 @@
         "description": "This is the API for Un-Assign role to the user."
     },
     {
-        "permission_name": "Testing 1",
+        "permission_name": "Fetch Lead",
         "method": "GET",
-        "endpoint": "/api/v1/roles/testing-v1/",
-        "description": "This is the API for Un-Assign role to the user."
-    },
-    {
-        "permission_name": "Testing 2",
-        "method": "POST",
-        "endpoint": "/api/v1/roles/testing-v2/",
-        "description": "This is the API for Un-Assign role to the user."
-    },
-    {
-        "permission_name": "Testing 3",
-        "method": "GET",
-        "endpoint": "/api/v1/roles/testing-v3/",
+        "endpoint": "/api/v1/leads/",
         "description": "This is the API for Un-Assign role to the user."
     }
+    
     
 ]
