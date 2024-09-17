@@ -8,6 +8,30 @@ from leads.models import OptimizedAddressView
 
 
 class DynamicLeadFilterAPIView(APIView):
+    """
+    CREATE MATERIALIZED VIEW optimized_address_view as
+    SELECT
+        db.source,
+        db.sub_source,
+        c.name AS country_name,
+        s.name AS state_name,
+        ci.name AS city_name,
+        sl.school
+    FROM
+        info_bridge_databridge db
+    JOIN
+        leads_studentleads sl ON sl.uploaded_id = db.id
+    JOIN
+        locations_address a ON a.lead_id = sl.id
+    JOIN
+        locations_country c ON a.country_id = c.id
+    JOIN
+        locations_state s ON a.state_id = s.id
+    JOIN
+        locations_city ci ON a.city_id = ci.id
+    WITH DATA;
+
+    """
     def get(self, request):
         source = request.GET.get("source", None)
         sub_source = request.GET.get("sub_source", None)
