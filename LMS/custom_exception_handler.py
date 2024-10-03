@@ -4,6 +4,9 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework import status
 from utilities import utils
 import json
+from rest_framework.exceptions import ErrorDetail
+from LMS.settings import DEFAULT_AUTO_FIELD
+
 
 
 def _flatten_validation_errors(errors):
@@ -26,10 +29,11 @@ def custom_exception_handler(exc, context):
     if response is not None:
         request = context.get("request")
         extra_information = {}
-        # print("Error : ", exc.detail)
         try:
-
+            # print("Message: ", exc.detail)
+            
             if isinstance(exc, ValidationError):
+                
                 if isinstance(exc.detail, dict):
                     detail = _flatten_validation_errors(exc.detail)  # Flatten errors
                     message = (
@@ -38,11 +42,17 @@ def custom_exception_handler(exc, context):
                     key = next(iter(detail.keys())) if detail else "Validation error"
 
                 elif isinstance(exc.detail, list):
-                    detail = _flatten_validation_errors(exc.detail[0])  # Flatten errors
-                    message = (
-                        next(iter(detail.values())) if detail else "Validation error"
-                    )
-                    key = next(iter(detail.keys())) if detail else "Validation error"
+                    try:
+                        detail = _flatten_validation_errors(exc.detail)  # Flatten errors
+                        message = (
+                            next(iter(detail.values())) if detail else "Validation error"
+                        )
+                        key = next(iter(detail.keys())) if detail else "Validation error"
+                        
+                    except Exception as e:
+                        detail = {"None": exc.detail[0]}
+                        message=exc.detail[0]
+                        key=None
 
                 if "unique" in str(detail.values()).lower():
                     response.status_code = status.HTTP_409_CONFLICT
@@ -63,7 +73,7 @@ def custom_exception_handler(exc, context):
             elif isinstance(exc, NotAuthenticated):
                 message="You are not authenticated user."
                 key="message"
-
+            
             else:
                 detail = response.data
                 message = response.status_text
@@ -74,12 +84,12 @@ def custom_exception_handler(exc, context):
                 message="{0}: {1}".format(key, message),
                 extra_information=extra_information,
             )
+            
         except Exception as e:
-            print("Error: ************************", e)
             payload = utils.get_payload(
                 request=request,
                 detail={},
-                message=exc.detail[0],
+                message=exc,
                 extra_information=extra_information,
             )
 

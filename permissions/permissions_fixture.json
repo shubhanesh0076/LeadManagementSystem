@@ -88,6 +88,36 @@
         "method": "GET",
         "endpoint": "/api/v1/leads/",
         "description": "This is the API for Un-Assign role to the user."
+    },
+    {
+        "permission_name": "Dynamic Lead Filter.",
+        "method": "GET",
+        "endpoint": "/api/v1/leads/dynamic-lead-filter/",
+        "description": "This API used for getting the source , sub_source, state, city, country, school of leads. there is dependies of fields."
+    },
+    {
+        "permission_name": ".",
+        "method": "GET",
+        "endpoint": "/api/v1/leads/dynamic-lead-filter/",
+        "description": "This API used for getting the source , sub_source, state, city, country, school of leads. there is dependies of fields."
+    },
+    {
+        "permission_name": "Update Leads",
+        "method": "POST",
+        "endpoint": "/api/v1/leads/",
+        "description": "This is the API for Update lead information."
+    },
+    {
+        "permission_name": "Lead Remark",
+        "method": "POST",
+        "endpoint": "/api/v1/leads/remark/",
+        "description": "This is the API for Update lead information."
+    },
+    {
+        "permission_name": "Lead Remark History",
+        "method": "GET",
+        "endpoint": "/api/v1/leads/remark-history/",
+        "description": "This is the API for Lead Remark History."
     }
     
     

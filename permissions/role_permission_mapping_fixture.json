@@ -83,5 +83,40 @@
         "role_name": "bdms",
         "method": "GET",
         "endpoint": "/api/v1/roles/testing-v6/"
+    },
+    {
+        "role_name": "counsellor",
+        "method": "GET",
+        "endpoint": "/api/v1/leads/dynamic-lead-filter/"
+    },
+    {
+        "role_name": "counsellor",
+        "method": "POST",
+        "endpoint": "/api/v1/leads/"
+    },
+    {
+        "role_name": "counsellor",
+        "method": "POST",
+        "endpoint": "/api/v1/leads/remark/"
+    },
+    {
+        "role_name": "bdms",
+        "method": "POST",
+        "endpoint": "/api/v1/leads/"
+    },
+    {
+        "role_name": "bdms",
+        "method": "POST",
+        "endpoint": "/api/v1/leads/remark/"
+    },
+    {
+        "role_name": "bdms",
+        "method": "GET",
+        "endpoint": "/api/v1/leads/remark-history/"
+    },
+    {
+        "role_name": "counsellor",
+        "method": "GET",
+        "endpoint": "/api/v1/leads/remark-history/"
     }
 ]

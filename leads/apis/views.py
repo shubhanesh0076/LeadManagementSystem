@@ -1,10 +1,30 @@
+from django.utils import timezone
+from django.db.models import Q
 from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework.response import Response
-from utilities import utils
+from utilities import utils, pagination
+from utilities.custom_exceptions import LeadAlreadyAttemptedException
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from permissions.custom_permissions import CustomPermission
-from leads.models import OptimizedAddressView
+from leads.models import (
+    AssignedTO,
+    LeadRemark,
+    LeadRemarkHistory,
+    OptimizedAddressView,
+    StudentLeads,
+)
+from info_bridge.models import DataBridge
+from django.db import transaction
+from leads.apis.serializers import (
+    StudentLeadsSerializer,
+    LeadRemarkSerializer,
+    LeadRemarkHistorySerializer,
+)
+
+# from accounts.models import User
+from utilities.custom_exceptions import UnexpectedError
+from django.db.models import Count
 
 
 class DynamicLeadFilterAPIView(APIView):
@@ -32,6 +52,10 @@ class DynamicLeadFilterAPIView(APIView):
     WITH DATA;
 
     """
+
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [CustomPermission]
+
     def get(self, request):
         source = request.GET.get("source", None)
         sub_source = request.GET.get("sub_source", None)
@@ -42,7 +66,7 @@ class DynamicLeadFilterAPIView(APIView):
 
         if source and not any([sub_source, country, state, city, school]):
             sub_source_qs = (
-                OptimizedAddressView.objects.filter(source=source)
+                DataBridge.objects.filter(source=source)
                 .values_list("sub_source", flat=True)
                 .distinct()
             )
@@ -107,9 +131,7 @@ class DynamicLeadFilterAPIView(APIView):
             payload = utils.get_payload(request, detail=school_qs, message=message)
             return Response(data=payload, status=status.HTTP_200_OK)
 
-        source_qs = OptimizedAddressView.objects.values_list(
-            "source", flat=True
-        ).distinct()
+        source_qs = DataBridge.objects.values_list("source", flat=True).distinct()
         payload = utils.get_payload(request, detail=source_qs, message="Source List")
         return Response(data=payload, status=status.HTTP_200_OK)
 
@@ -121,14 +143,223 @@ class FetchLeadAPIView(APIView):
     ]  # check for user is autnenticated or not.
     permission_classes = [CustomPermission]  # check for user has permissions or not
 
+    def get_query(
+        self,
+        source: str,
+        sub_source: str,
+        country: str,
+        state: str,
+        city: str,
+        school: str,
+    ):
+        query = Q()
+
+        if source:
+            query &= Q(uploaded__source=source)
+        if sub_source:
+            query &= Q(uploaded__sub_source=sub_source)
+        if country:
+            query &= Q(address__country__name=country)
+        if state:
+            query &= Q(address__state__name=state)
+        if city:
+            query &= Q(address__city__name=city)
+        if school:
+            query &= Q(school=school)
+        return query
+
+    def update_is_viewed_field(self, obj: StudentLeads = None) -> None:
+        obj.is_attempted = True
+        obj.save()
+
     def get(self, request):
+        source = request.GET.get("source", None)
+        sub_source = request.GET.get("sub_source", None)
+        country = request.GET.get("country", None)
+        state = request.GET.get("state", None)
+        city = request.GET.get("city", None)
+        school = request.GET.get("school", None)
 
-        source = "excel"
-        sub_source = "12th"
-        country = "India"
-        state = "UP"
-        city = "Noida"
-        school = "Galgotia University."
+        query = self.get_query(source, sub_source, country, state, city, school)
+        student_leads_qs = StudentLeads.objects.select_related(
+            "parents_info", "education_info", "general_info", "address"
+        ).filter(query, is_attempted=False)
 
-        payload = utils.get_payload(request, message="Lead Information")
+        if student_leads_qs.exists():
+            try:
+                with transaction.atomic():
+                    # get the first student object...
+                    first_student_obj = student_leads_qs.first()
+                    lead_remark_obj, is_created = LeadRemark.objects.get_or_create(
+                        lead_id=first_student_obj.id,
+                        defaults={
+                            "start_time": timezone.now(),
+                            "user_id": request.user.id,
+                        },
+                    )
+
+                    if is_created:
+                        self.update_is_viewed_field(obj=first_student_obj)
+                        serialized_student_details = StudentLeadsSerializer(
+                            first_student_obj, many=False
+                        ).data
+
+                        payload = utils.get_payload(
+                            request,
+                            detail=serialized_student_details,
+                            message="Student details.",
+                        )
+                        return Response(data=payload, status=status.HTTP_200_OK)
+
+                    else:
+                        raise LeadAlreadyAttemptedException(
+                            detail=f"This lead is already attempted by: {lead_remark_obj.user.email}. "
+                        )
+
+            except LeadAlreadyAttemptedException as laa:
+                payload = utils.get_payload(request, message=str(laa))
+                return Response(data=payload, status=status.HTTP_409_CONFLICT)
+
+            except Exception as e:
+                print("eRROR: ", e)
+                payload = utils.get_payload(
+                    request, message="An unexpected error occurse."
+                )
+                return Response(
+                    data=payload, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
+        payload = utils.get_payload(request, message="There is no leads.")
+        return Response(data=payload, status=status.HTTP_404_NOT_FOUND)
+
+    def post(self, request):
+        data = request.data
+        lead_id = data.get("lead_id")
+
+        try:
+            student_lead = StudentLeads.objects.get(id=lead_id)
+
+        except StudentLeads.DoesNotExist:
+            payload = utils.get_payload(
+                request, detail={}, message="Student Object not found."
+            )
+            return Response(data=payload, status=status.HTTP_404_NOT_FOUND)
+
+        st_serializer = StudentLeadsSerializer(
+            student_lead, data=request.data, partial=True
+        )
+
+        if st_serializer.is_valid():
+
+            with transaction.atomic():
+                st_serializer.save()
+            payload = utils.get_payload(request, message="Lead successfully updated.")
+            return Response(data=payload, status=status.HTTP_200_OK)
+
+        payload = utils.get_payload(request, message=st_serializer.errors)
+        return Response(payload, status=status.HTTP_400_BAD_REQUEST)
+
+
+class LeadRemarkAPIView(APIView):
+    authentication_classes = [
+        JWTAuthentication
+    ]  # check for user is autnenticated or not.
+    permission_classes = [CustomPermission]  # check for user has permissions or not
+    leadremark_serializer_class = LeadRemarkSerializer
+
+    def get_bool(self, field) -> bool:
+        try:
+            if field in ["True", "1", "Yes", "yes", "true", True]:
+                return True
+            return False
+        except:
+            return False
+
+    def post(self, request):
+        data = request.data
+        lead_id = data.get("lead_id", None)
+
+        if not lead_id:
+            payload = utils.get_payload(
+                request, detail={}, message="Lead ID is required."
+            )
+            return Response(data=payload, status=status.HTTP_400_BAD_REQUEST)
+
+        lead_remark_obj, is_created = LeadRemark.objects.get_or_create(lead_id=lead_id)
+        lead_remark_deserialized = self.leadremark_serializer_class(
+            lead_remark_obj, data=data, partial=True
+        )
+
+        if lead_remark_deserialized.is_valid(raise_exception=True):
+            try:
+                with transaction.atomic():
+                    lead_remark_deserialized.save()
+                    payload = utils.get_payload(
+                        request,
+                        detail={},
+                        message="Lead Remark has been successfully updated.",
+                    )
+                    return Response(data=payload, status=status.HTTP_200_OK)
+
+            except ValueError as ve:
+                payload = utils.get_payload(request, detail={}, message=f"{ve}")
+                return Response(data=payload, status=status.HTTP_400_BAD_REQUEST)
+
+            except UnexpectedError:
+                payload = utils.get_payload(
+                    request, detail={}, message="An un expected error occurse."
+                )
+                return Response(
+                    data=payload, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
+        payload = utils.get_payload(
+            request, detail={}, message=lead_remark_deserialized.error_messages
+        )
+        return Response(data=payload, status=status.HTTP_400_BAD_REQUEST)
+
+
+class LeadRemarkHistoryAPIView(APIView):
+    authentication_classes = [
+        JWTAuthentication
+    ]  # check for user is autnenticated or not.
+    permission_classes = [CustomPermission]  # check for user has permissions or not
+    leadremark_history_serializer_class = LeadRemarkHistorySerializer
+
+    def get(self, request):
+        records=10
+        lead_remark_history = LeadRemarkHistory.objects.order_by(
+            "-updated_at"
+        ).annotate(count=Count("id"))[:records]
+        
+        try:
+            lead_remark_history_serialized_data = self.leadremark_history_serializer_class(
+                lead_remark_history, many=True
+            ).data
+        except Exception as e:
+            payload = utils.get_payload(
+                request,
+                detail=[],
+                message="An un-expected error occurse.",
+            )
+            return Response(data=payload, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        payload = utils.get_payload(
+            request,
+            detail=lead_remark_history_serialized_data,
+            message="Lead remark history data.",
+        )
+        return Response(data=payload, status=status.HTTP_200_OK)
+
+
+class AssignLeadAPIVIew(APIView):
+    authentication_classes = [
+        JWTAuthentication
+    ]  # check for user is autnenticated or not.
+    permission_classes = [CustomPermission]  # check for user has permissions or not
+
+    def post(self, request):
+
+        # AssignedTO.objects.
+        payload = utils.get_payload(request, detail={}, message="This is the message part.")
         return Response(data=payload, status=status.HTTP_200_OK)

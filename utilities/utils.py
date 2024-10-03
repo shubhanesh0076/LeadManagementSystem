@@ -91,6 +91,12 @@ class Utils:
     ):
         return datetime.strftime(obj, datetime_format)
 
+    def datetime_difference(self, start_timestamp, end_timestamp):
+        "returns the time difference between two timestamps in Min."
+        # if start_time or end_time is None:
+        #     raise "timestamp can not be None."
+        return (end_timestamp - start_timestamp).total_seconds() // 60
+
 
 class CustomPageNumberPagination(PageNumberPagination):
     page_size = const.page_size

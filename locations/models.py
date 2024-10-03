@@ -57,23 +57,17 @@ class Address(models.Model):
         max_length=255, null=True, blank=True
     )  # Second line of the address (optional)
     city = models.ForeignKey(
-        City, on_delete=models.SET_NULL, null=True, blank=True
+        City, on_delete=models.SET_NULL, null=True, blank=True, related_name="related_city"
     )  # City of the address
     state = models.ForeignKey(
-        State, on_delete=models.SET_NULL, null=True, blank=True
+        State, on_delete=models.SET_NULL, null=True, blank=True, related_name="related_state"
     )  # State of the address
     country = models.ForeignKey(
-        Country, on_delete=models.SET_NULL, null=True, blank=True
+        Country, on_delete=models.SET_NULL, null=True, blank=True, related_name="related_country"
     )  # Country of the address
     postal_code = models.CharField(
         max_length=20, null=True, blank=True
     )  # Postal code of the address
 
 
-    # class Meta:
-    #     indexes = [
-    #         models.Index(fields=['lead']),
-    #         models.Index(fields=['country']),
-    #         models.Index(fields=['state']),
-    #         models.Index(fields=['city']),
-    #     ]
+
