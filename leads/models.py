@@ -47,6 +47,7 @@ class StudentLeads(models.Model):
         indexes = [
             models.Index(fields=["school"]),
             models.Index(fields=["is_attempted"]),
+            models.Index(fields=["is_assigned"])
         ]
 
 
@@ -139,6 +140,7 @@ class LeadRemark(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_follow_up=models.BooleanField(default=False)
+    is_remarked=models.BooleanField(default=False)
 
 
 class LeadRemarkHistory(models.Model):
@@ -165,7 +167,7 @@ class LeadRemarkHistory(models.Model):
     )
 
     leadremark = models.ForeignKey(
-        LeadRemark, related_name="lead_remark_history", on_delete=models.CASCADE
+        LeadRemark, related_name="lead_remark_history", on_delete=models.CASCADE, null=True, blank=True
     )
     user = models.ForeignKey(
         User,
@@ -182,6 +184,7 @@ class LeadRemarkHistory(models.Model):
     end_time = models.DateTimeField(null=True, blank=True)
     time_spent_on_lead_in_min = models.IntegerField(default=0)
     is_follow_up=models.BooleanField(default=False)
+    is_remarked=models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

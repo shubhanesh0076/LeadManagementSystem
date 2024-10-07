@@ -8,5 +8,5 @@ urlpatterns = [
     path('dynamic-lead-filter/', DynamicLeadFilterAPIView.as_view(), name='dynamic-lead-filter'),
     path('remark/', LeadRemarkAPIView.as_view(), name='lead-remark'),
     path('remark-history/', LeadRemarkHistoryAPIView.as_view(), name='remark-history'),
-    path('assign-lead', AssignLeadAPIVIew.as_view(), name='assign-leads')
+    path('assign/', AssignLeadAPIVIew.as_view(), name='assign-leads')
 ]

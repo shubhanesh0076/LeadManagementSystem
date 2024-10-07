@@ -1,4 +1,5 @@
 from django.utils import timezone
+import re
 from utilities import utils
 from info_bridge.models import DataBridge
 from rest_framework import serializers
@@ -10,10 +11,13 @@ from leads.models import (
     LeadRemarkHistory,
     ParentsInfo,
     StudentLeads,
+    AssignedTO,
 )
 from locations.models import Address
-from django.db import transaction
 from utilities.custom_exceptions import UnexpectedError
+from accounts.models import User
+from permissions.models import Role, UserRoleMapping
+from django.db import transaction
 
 
 class DataBridgeSourceModelSerializer(serializers.ModelSerializer):
@@ -267,6 +271,7 @@ class LeadRemarkSerializer(serializers.ModelSerializer):
                 "time_spent_on_lead_in_min"
             ]
             instance.is_follow_up = validated_data["is_follow_up"]
+            instance.is_remarked = True
             instance.save()
             validated_data["leadremark_id"] = instance.id
             validated_data["user_id"] = instance.user_id
@@ -288,11 +293,14 @@ class LeadRemarkSerializer(serializers.ModelSerializer):
                 )
 
             # LEAD REMARK HISTORY CREATE.
-            validated_data.pop("follow_up_date")
-            validated_data.pop("follow_up_time")
+            if instance.is_follow_up:
+                validated_data.pop("follow_up_date")
+                validated_data.pop("follow_up_time")
+            validated_data["is_remarked"] = True
             LeadRemarkHistory.objects.create(**validated_data)
 
         except Exception as e:
+            print("error ", e)
             raise UnexpectedError(message="An unexpected error occurse.")
         return instance
 
@@ -317,7 +325,7 @@ class LeadRemarkHistorySerializer(serializers.ModelSerializer):
             "time_spent_on_lead_in_min",
             "is_follow_up",
             "updated_at",
-            "created_at"
+            "created_at",
         ]
 
     def get_user(self, obj):
@@ -351,7 +359,7 @@ class LeadRemarkHistorySerializer(serializers.ModelSerializer):
             return None
         except:
             return None
-    
+
     def get_created_at(self, obj):
         try:
             if obj is not None:
@@ -367,8 +375,116 @@ class FollowUpSerializer(serializers.ModelSerializer):
         model = FollowUp
         fields = "__all__"
 
-    # def create(self, validated_data):
-    #     return FollowUp.objects.create()
 
-    # def update(self, instance, validated_data):
-    #     pass
+class AssignedTOSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = AssignedTO
+        fields = "__all__"
+
+    def validate(self, validated_data):
+        lead = validated_data.get("lead")
+        assign_to = validated_data.get("assign_to")
+
+        request = self.context.get("request")
+        assign_by = request.user
+        assign_by_roles = request.auth.get("roles", [])
+
+        # Self-assignment validation
+        if assign_by.email == assign_to.email:
+            raise serializers.ValidationError("You cannot assign the lead to yourself.")
+
+        # Fetch roles of the assignee
+        assign_to_roles = UserRoleMapping.objects.filter(
+            user_id=assign_to.id
+        ).values_list("role__role_name", flat=True)
+
+        # Fetch lead remark and validate the lead has been attempted
+        leadremark_qs = LeadRemark.objects.filter(lead=lead).select_related("lead")
+        if not leadremark_qs.exists():
+            raise serializers.ValidationError("Attempt the lead before assigning it.")
+
+        leadremark_obj = leadremark_qs.first()
+
+        # Check if lead is already assigned by the current user
+        assigned_lead_obj = AssignedTO.objects.filter(lead=lead, assign_by=assign_by)
+        assigned_to_exists = assigned_lead_obj.filter(assign_to=assign_to).exists()
+
+        # Admins and superusers can assign to anyone
+        if "admin" in assign_to_roles or request.user.is_superuser:
+            return self._handle_assignment(
+                lead,
+                assign_to,
+                assign_by,
+                leadremark_obj,
+                assigned_lead_obj,
+                assigned_to_exists,
+                validated_data,
+            )
+
+        # Validation for non-admins (counselors, bdms, etc.)
+        if assigned_lead_obj.exists():
+            if assigned_lead_obj.first().assign_to.email != assign_by.email:
+                raise serializers.ValidationError(
+                    "Only the person assigned to this lead can further assign it."
+                )
+        else:
+            if leadremark_obj.user != assign_by:
+                raise serializers.ValidationError(
+                    "Only the person who attempted the lead can assign it."
+                )
+
+        # Role-based assignment validation
+        if "counsellor" in assign_by_roles and "bdms" not in assign_to_roles:
+            raise serializers.ValidationError(
+                "Counselors can only assign leads to BDMS."
+            )
+
+        if "bdms" in assign_by_roles and "bdms" not in assign_to_roles:
+            raise serializers.ValidationError(
+                "BDMS can only assign leads to other BDMS."
+            )
+
+        return self._handle_assignment(
+            lead,
+            assign_to,
+            assign_by,
+            leadremark_obj,
+            assigned_lead_obj,
+            assigned_to_exists,
+            validated_data,
+        )
+
+    def _handle_assignment(
+        self,
+        lead,
+        assign_to,
+        assign_by,
+        leadremark_obj,
+        assigned_lead_obj,
+        assigned_to_exists,
+        validated_data,
+    ):
+        with transaction.atomic():
+            if not assigned_to_exists:
+                AssignedTO.objects.create(
+                    lead=lead, assign_to=assign_to, assign_by=assign_by
+                )
+
+                # Update lead assignment status
+                StudentLeads.objects.filter(id=lead.id).update(is_assigned=True)
+
+                # Log the assignment in LeadRemarkHistory
+                LeadRemarkHistory.objects.create(
+                    leadremark=leadremark_obj, user=assign_by, lead_status="REFERRED"
+                )
+
+            else:
+                assigned_lead_obj.update(assign_to=assign_to, assign_by=assign_by)
+
+                # Log the reassignment in LeadRemarkHistory
+                LeadRemarkHistory.objects.create(
+                    leadremark=leadremark_obj, user=assign_by, lead_status="REFERRED"
+                )
+
+        return validated_data

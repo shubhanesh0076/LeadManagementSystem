@@ -118,6 +118,12 @@
         "method": "GET",
         "endpoint": "/api/v1/leads/remark-history/",
         "description": "This is the API for Lead Remark History."
+    },
+    {
+        "permission_name": "Assign Lead",
+        "method": "POST",
+        "endpoint": "/api/v1/leads/assign/",
+        "description": "This is used for assigned the lead."
     }
     
     

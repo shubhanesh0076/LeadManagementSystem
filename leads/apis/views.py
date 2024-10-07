@@ -20,6 +20,7 @@ from leads.apis.serializers import (
     StudentLeadsSerializer,
     LeadRemarkSerializer,
     LeadRemarkHistorySerializer,
+    AssignedTOSerializer,
 )
 
 # from accounts.models import User
@@ -305,7 +306,7 @@ class LeadRemarkAPIView(APIView):
                 payload = utils.get_payload(request, detail={}, message=f"{ve}")
                 return Response(data=payload, status=status.HTTP_400_BAD_REQUEST)
 
-            except UnexpectedError:
+            except UnexpectedError as e:
                 payload = utils.get_payload(
                     request, detail={}, message="An un expected error occurse."
                 )
@@ -327,15 +328,21 @@ class LeadRemarkHistoryAPIView(APIView):
     leadremark_history_serializer_class = LeadRemarkHistorySerializer
 
     def get(self, request):
-        records=10
-        lead_remark_history = LeadRemarkHistory.objects.order_by(
-            "-updated_at"
-        ).annotate(count=Count("id"))[:records]
-        
+        records = 10
+        lead_id = request.GET.get("lead_id", None)
+        lead_remark_history = (
+            LeadRemarkHistory.objects.select_related("leadremark")
+            .filter(leadremark__lead__id=lead_id)
+            .order_by("-updated_at")
+            .annotate(count=Count("id"))[:records]
+        )
+
         try:
-            lead_remark_history_serialized_data = self.leadremark_history_serializer_class(
-                lead_remark_history, many=True
-            ).data
+            lead_remark_history_serialized_data = (
+                self.leadremark_history_serializer_class(
+                    lead_remark_history, many=True
+                ).data
+            )
         except Exception as e:
             payload = utils.get_payload(
                 request,
@@ -357,9 +364,21 @@ class AssignLeadAPIVIew(APIView):
         JWTAuthentication
     ]  # check for user is autnenticated or not.
     permission_classes = [CustomPermission]  # check for user has permissions or not
+    assignto_serializer_class = AssignedTOSerializer
 
     def post(self, request):
 
-        # AssignedTO.objects.
-        payload = utils.get_payload(request, detail={}, message="This is the message part.")
-        return Response(data=payload, status=status.HTTP_200_OK)
+        assignto_deserializer = self.assignto_serializer_class(
+            data=request.data, context={"request": request}
+        )
+        if assignto_deserializer.is_valid(raise_exception=True):
+            payload = utils.get_payload(
+                request,
+                message=f"Lead has been successfully assigned to {request.data.get('assign_to', None)}.",
+            )
+            return Response(data=payload, status=status.HTTP_200_OK)
+
+        payload = utils.get_payload(
+            request, detail={}, message=assignto_deserializer.error_messages
+        )
+        return Response(data=payload, status=status.HTTP_400_BAD_REQUEST)

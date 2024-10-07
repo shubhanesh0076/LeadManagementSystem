@@ -118,5 +118,10 @@
         "role_name": "counsellor",
         "method": "GET",
         "endpoint": "/api/v1/leads/remark-history/"
+    },
+    {
+        "role_name": "counsellor",
+        "method": "POST",
+        "endpoint": "/api/v1/leads/assign/"
     }
 ]
