@@ -123,5 +123,36 @@
         "role_name": "counsellor",
         "method": "POST",
         "endpoint": "/api/v1/leads/assign/"
+    },
+    {
+        "role_name": "counsellor",
+        "method": "GET",
+        "endpoint": "/api/v1/leads/followups/"
+    },
+    {
+        "role_name": "bdms",
+        "method": "GET",
+        "endpoint": "/api/v1/leads/followups/"
+    },
+    {
+        "role_name": "counsellor",
+        "method": "GET",
+        "endpoint": "/api/v1/leads/pending/"
+    },
+    {
+        "role_name": "bdms",
+        "method": "GET",
+        "endpoint": "/api/v1/leads/pending/"
+    },
+    {
+        "role_name": "counsellor",
+        "method": "GET",
+        "endpoint": "/api/v1/leads/reffered/"
+    },
+    {
+        "role_name": "bdms",
+        "method": "GET",
+        "endpoint": "/api/v1/leads/reffered/"
     }
+
 ]

@@ -124,7 +124,23 @@
         "method": "POST",
         "endpoint": "/api/v1/leads/assign/",
         "description": "This is used for assigned the lead."
+    },
+    {
+        "permission_name": "FollowUp List",
+        "method": "GET",
+        "endpoint": "/api/v1/leads/followups/",
+        "description": "This API used for get the followup list."
+    },
+    {
+        "permission_name": "Pending Leads List",
+        "method": "GET",
+        "endpoint": "/api/v1/leads/pending/",
+        "description": "This API used for get the pending leads list."
+    },
+    {
+        "permission_name": "Reffered Leads List",
+        "method": "GET",
+        "endpoint": "/api/v1/leads/reffered/",
+        "description": "This API used for get the reffered leads list."
     }
-    
-    
 ]

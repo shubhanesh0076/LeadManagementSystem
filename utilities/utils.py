@@ -10,7 +10,7 @@ from datetime import datetime
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.exceptions import NotFound
-
+from utilities.custom_exceptions import PageNotFound
 
 class Utils:
 
@@ -121,7 +121,7 @@ class CustomPageNumberPagination(PageNumberPagination):
             return super().paginate_queryset(queryset, request, view)
         except NotFound:
             # Handle the case where the requested page is invalid
-            raise NotFound(detail="Invalid page. Please select a valid page number.")
+            raise PageNotFound(detail="Invalid page. Please select a valid page number, There is no more data.")
 
     def get_custom_error_response(self):
         return Response(

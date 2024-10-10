@@ -193,6 +193,7 @@ class FollowUp(models.Model):
     lead = models.ForeignKey(
         StudentLeads, on_delete=models.CASCADE, related_name="follow_ups"
     )
+    
     follow_up_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     follow_up_date = models.DateField(null=True, blank=True)
     follow_up_time = models.TimeField(null=True, blank=True)

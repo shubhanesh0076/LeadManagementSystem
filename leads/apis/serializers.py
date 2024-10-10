@@ -1,5 +1,4 @@
 from django.utils import timezone
-import re
 from utilities import utils
 from info_bridge.models import DataBridge
 from rest_framework import serializers
@@ -15,7 +14,6 @@ from leads.models import (
 )
 from locations.models import Address
 from utilities.custom_exceptions import UnexpectedError
-from accounts.models import User
 from permissions.models import Role, UserRoleMapping
 from django.db import transaction
 
@@ -417,6 +415,7 @@ class AssignedTOSerializer(serializers.ModelSerializer):
                 assign_to,
                 assign_by,
                 leadremark_obj,
+                leadremark_qs,
                 assigned_lead_obj,
                 assigned_to_exists,
                 validated_data,
@@ -450,6 +449,7 @@ class AssignedTOSerializer(serializers.ModelSerializer):
             assign_to,
             assign_by,
             leadremark_obj,
+            leadremark_qs,
             assigned_lead_obj,
             assigned_to_exists,
             validated_data,
@@ -461,10 +461,12 @@ class AssignedTOSerializer(serializers.ModelSerializer):
         assign_to,
         assign_by,
         leadremark_obj,
+        leadremark_qs,
         assigned_lead_obj,
         assigned_to_exists,
         validated_data,
     ):
+        lead_status = "REFERRED"
         with transaction.atomic():
             if not assigned_to_exists:
                 AssignedTO.objects.create(
@@ -473,18 +475,203 @@ class AssignedTOSerializer(serializers.ModelSerializer):
 
                 # Update lead assignment status
                 StudentLeads.objects.filter(id=lead.id).update(is_assigned=True)
-
+                leadremark_qs.update(lead_status=lead_status)
                 # Log the assignment in LeadRemarkHistory
                 LeadRemarkHistory.objects.create(
-                    leadremark=leadremark_obj, user=assign_by, lead_status="REFERRED"
+                    leadremark=leadremark_obj, user=assign_by, lead_status=lead_status
                 )
 
             else:
                 assigned_lead_obj.update(assign_to=assign_to, assign_by=assign_by)
-
+                leadremark_qs.update(lead_status=lead_status)
                 # Log the reassignment in LeadRemarkHistory
                 LeadRemarkHistory.objects.create(
-                    leadremark=leadremark_obj, user=assign_by, lead_status="REFERRED"
+                    leadremark=leadremark_obj, user=assign_by, lead_status=lead_status
                 )
 
         return validated_data
+
+
+class FollowUpSerializer(serializers.ModelSerializer):
+
+    lead = serializers.SerializerMethodField()
+    follow_up_by = serializers.SerializerMethodField()
+    contact_no = serializers.SerializerMethodField()
+
+    class Meta:
+
+        model = FollowUp
+        fields = [
+            "lead",
+            "follow_up_by",
+            "follow_up_date",
+            "follow_up_time",
+            "notes",
+            "contact_no",
+        ]
+
+    def get_lead(self, obj):
+        if not obj:
+            return None
+        return f"{obj.lead.first_name} {obj.lead.last_name}"
+
+    def get_follow_up_by(self, obj):
+        if not obj:
+            return None
+
+        elif obj.follow_up_by.username:
+            return obj.follow_up_by.username
+
+        elif obj.follow_up_by.first_name:
+            return f"{obj.lead.first_name} {obj.lead.last_name}"
+        else:
+            return None
+
+    def get_contact_no(self, obj):
+        if not obj:
+            return None
+        return obj.lead.contact_no
+
+
+class PendingLeadsSerializer(serializers.ModelSerializer):
+
+    contact_no = serializers.SerializerMethodField()
+    user = serializers.SerializerMethodField()
+    lead = serializers.SerializerMethodField()
+    created_at = serializers.SerializerMethodField()
+    updated_at = serializers.SerializerMethodField()
+
+    class Meta:
+        model = LeadRemark
+        fields = [
+            "id",
+            "contact_established",
+            "contact_status",
+            "review",
+            "lead_status",
+            "contact_no",
+            "time_spent_on_lead_in_min",
+            "created_at",
+            "updated_at",
+            "is_remarked",
+            "lead",
+            "user",
+        ]
+
+    def get_contact_no(self, obj):
+        if obj is not None:
+            return obj.lead.contact_no
+        else:
+            return None
+
+    def get_user(self, obj):
+
+        if not obj:
+            return None
+
+        elif obj.user.username:
+            return obj.user.username
+
+        elif obj.user.first_name:
+            return f"{obj.user.first_name} {obj.user.last_name}"
+        else:
+            return None
+
+    def get_lead(self, obj):
+
+        if not obj:
+            return None
+
+        elif obj.lead.email:
+            return obj.lead.email
+
+        elif obj.lead.first_name:
+            return f"{obj.lead.first_name} {obj.lead.last_name}"
+        else:
+            return None
+
+    def get_created_at(self, obj):
+
+        if obj is not None:
+            return utils.convert_into_desired_dtime_format(obj.updated_at)
+        else:
+            return None
+
+    def get_updated_at(self, obj):
+
+        if obj is not None:
+            return utils.convert_into_desired_dtime_format(obj.updated_at)
+        else:
+            return None
+
+
+class ReferredLeadsSerializer(serializers.ModelSerializer):
+
+    contact_no = serializers.SerializerMethodField()
+    user = serializers.SerializerMethodField()
+    lead = serializers.SerializerMethodField()
+    created_at = serializers.SerializerMethodField()
+    updated_at = serializers.SerializerMethodField()
+
+    class Meta:
+        model = LeadRemark
+        fields = [
+            "id",
+            "contact_established",
+            "contact_status",
+            "lead_status",
+            "review",
+            "contact_no",
+            "time_spent_on_lead_in_min",
+            "created_at",
+            "updated_at",
+            "is_remarked",
+            "lead",
+            "user",
+        ]
+
+    def get_contact_no(self, obj):
+        if obj is not None:
+            return obj.lead.contact_no
+        else:
+            return None
+
+    def get_user(self, obj):
+
+        if not obj:
+            return None
+
+        elif obj.user.username:
+            return obj.user.username
+
+        elif obj.user.first_name:
+            return f"{obj.user.first_name} {obj.user.last_name}"
+        else:
+            return None
+
+    def get_lead(self, obj):
+
+        if not obj:
+            return None
+
+        elif obj.lead.email:
+            return obj.lead.email
+
+        elif obj.lead.first_name:
+            return f"{obj.lead.first_name} {obj.lead.last_name}"
+        else:
+            return None
+
+    def get_created_at(self, obj):
+
+        if obj is not None:
+            return utils.convert_into_desired_dtime_format(obj.updated_at)
+        else:
+            return None
+
+    def get_updated_at(self, obj):
+
+        if obj is not None:
+            return utils.convert_into_desired_dtime_format(obj.updated_at)
+        else:
+            return None

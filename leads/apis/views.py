@@ -1,3 +1,4 @@
+# import django.core.exceptions
 from django.utils import timezone
 from django.db.models import Q
 from rest_framework.views import APIView
@@ -9,23 +10,28 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from permissions.custom_permissions import CustomPermission
 from leads.models import (
     AssignedTO,
+    AssignedTO,
+    FollowUp,
     LeadRemark,
     LeadRemarkHistory,
     OptimizedAddressView,
     StudentLeads,
 )
 from info_bridge.models import DataBridge
-from django.db import transaction
 from leads.apis.serializers import (
     StudentLeadsSerializer,
     LeadRemarkSerializer,
     LeadRemarkHistorySerializer,
     AssignedTOSerializer,
+    FollowUpSerializer,
+    PendingLeadsSerializer,
+    ReferredLeadsSerializer,
 )
-
-# from accounts.models import User
-from utilities.custom_exceptions import UnexpectedError
+from utilities.custom_exceptions import UnexpectedError, PageNotFound
 from django.db.models import Count
+from django.db import connection, transaction
+from leads.apis.lead_permission import IsLeadOwnerOrAdmin, FollowUpPermissions
+from LMS.settings import AUTH_PASSWORD_VALIDATORS
 
 
 class DynamicLeadFilterAPIView(APIView):
@@ -169,9 +175,12 @@ class FetchLeadAPIView(APIView):
             query &= Q(school=school)
         return query
 
-    def update_is_viewed_field(self, obj: StudentLeads = None) -> None:
-        obj.is_attempted = True
-        obj.save()
+    def update_is_viewed_field(self, obj) -> None:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "UPDATE leads_studentleads SET is_attempted = TRUE WHERE id = %s",
+                [obj.id],
+            )
 
     def get(self, request):
         source = request.GET.get("source", None)
@@ -180,58 +189,86 @@ class FetchLeadAPIView(APIView):
         state = request.GET.get("state", None)
         city = request.GET.get("city", None)
         school = request.GET.get("school", None)
+        lead_id = request.GET.get("lead_id", None)
 
-        query = self.get_query(source, sub_source, country, state, city, school)
-        student_leads_qs = StudentLeads.objects.select_related(
-            "parents_info", "education_info", "general_info", "address"
-        ).filter(query, is_attempted=False)
+        if lead_id:
+            is_leadowner = IsLeadOwnerOrAdmin()
+            student_lead = (
+                StudentLeads.objects.filter(id=lead_id)
+                .prefetch_related("lead_remark", "student_lead")
+                .first()
+            )
 
-        if student_leads_qs.exists():
-            try:
-                with transaction.atomic():
-                    # get the first student object...
-                    first_student_obj = student_leads_qs.first()
-                    lead_remark_obj, is_created = LeadRemark.objects.get_or_create(
-                        lead_id=first_student_obj.id,
-                        defaults={
-                            "start_time": timezone.now(),
-                            "user_id": request.user.id,
-                        },
+            if not is_leadowner.has_object_permission(request, None, student_lead):
+                payload = utils.get_payload(
+                    request, message="You do not have access to this lead."
+                )
+                return Response(data=payload, status=status.HTTP_403_FORBIDDEN)
+
+            serialized_student_details = StudentLeadsSerializer(
+                student_lead, many=False
+            ).data
+
+            payload = utils.get_payload(
+                request,
+                detail=serialized_student_details,
+                message="Student details.",
+            )
+            return Response(data=payload, status=status.HTTP_200_OK)
+
+        else:
+            query = self.get_query(source, sub_source, country, state, city, school)
+            student_leads_qs = StudentLeads.objects.select_related(
+                "parents_info", "education_info", "general_info", "address"
+            ).filter(query, is_attempted=False)
+
+            if student_leads_qs.exists():
+                try:
+                    with transaction.atomic():
+                        # get the first student object...
+                        first_student_obj = student_leads_qs.first()
+                        print("first lead: ", first_student_obj.id)
+                        lead_remark_obj, is_created = LeadRemark.objects.get_or_create(
+                            lead_id=first_student_obj.id,
+                            defaults={
+                                "start_time": timezone.now(),
+                                "user_id": request.user.id,
+                            },
+                        )
+
+                        if is_created:
+                            self.update_is_viewed_field(obj=first_student_obj)
+                            serialized_student_details = StudentLeadsSerializer(
+                                first_student_obj, many=False
+                            ).data
+
+                            payload = utils.get_payload(
+                                request,
+                                detail=serialized_student_details,
+                                message="Student details.",
+                            )
+                            return Response(data=payload, status=status.HTTP_200_OK)
+
+                        else:
+                            raise LeadAlreadyAttemptedException(
+                                detail=f"This lead is already attempted by: {lead_remark_obj.user.email}. "
+                            )
+
+                except LeadAlreadyAttemptedException as laa:
+                    payload = utils.get_payload(request, message=str(laa))
+                    return Response(data=payload, status=status.HTTP_409_CONFLICT)
+
+                except Exception as e:
+                    print("eRROR: ", e)
+                    payload = utils.get_payload(
+                        request, message="An unexpected error occurse."
+                    )
+                    return Response(
+                        data=payload, status=status.HTTP_500_INTERNAL_SERVER_ERROR
                     )
 
-                    if is_created:
-                        self.update_is_viewed_field(obj=first_student_obj)
-                        serialized_student_details = StudentLeadsSerializer(
-                            first_student_obj, many=False
-                        ).data
-
-                        payload = utils.get_payload(
-                            request,
-                            detail=serialized_student_details,
-                            message="Student details.",
-                        )
-                        return Response(data=payload, status=status.HTTP_200_OK)
-
-                    else:
-                        raise LeadAlreadyAttemptedException(
-                            detail=f"This lead is already attempted by: {lead_remark_obj.user.email}. "
-                        )
-
-            except LeadAlreadyAttemptedException as laa:
-                payload = utils.get_payload(request, message=str(laa))
-                return Response(data=payload, status=status.HTTP_409_CONFLICT)
-
-            except Exception as e:
-                print("eRROR: ", e)
-                payload = utils.get_payload(
-                    request, message="An unexpected error occurse."
-                )
-                return Response(
-                    data=payload, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
-
-        payload = utils.get_payload(request, message="There is no leads.")
-        return Response(data=payload, status=status.HTTP_404_NOT_FOUND)
+            payload = utils.get_payload(request, message="There is no leads.")
+            return Response(data=payload, status=status.HTTP_404_NOT_FOUND)
 
     def post(self, request):
         data = request.data
@@ -382,3 +419,189 @@ class AssignLeadAPIVIew(APIView):
             request, detail={}, message=assignto_deserializer.error_messages
         )
         return Response(data=payload, status=status.HTTP_400_BAD_REQUEST)
+
+
+class FollowUpAPIView(APIView):
+
+    authentication_classes = [
+        JWTAuthentication
+    ]  # check for user is autnenticated or not.
+    permission_classes = [CustomPermission]  # check for user has permissions or not
+
+    def get(self, request):
+        user_id = request.GET.get("user_id", None)
+        followup_type = "FOLLOWUP"
+
+        followup_permission = FollowUpPermissions()
+
+        try:
+            followup_leads = FollowUp.objects.filter(
+                lead__lead_remark__lead_status=followup_type, follow_up_by_id=user_id
+            )
+
+            if followup_permission.has_object_permission(request, None, followup_leads):
+                paginated_user_qs = pagination.paginate_queryset(
+                    followup_leads, request
+                )
+                serialized_follow_up_data = FollowUpSerializer(
+                    paginated_user_qs, many=True
+                ).data
+
+                payload = utils.get_payload(
+                    request,
+                    detail=serialized_follow_up_data,
+                    message="FollowUp List",
+                    extra_information=pagination.get_paginated_response(
+                        data=serialized_follow_up_data
+                    ),
+                )
+                return Response(data=payload, status=status.HTTP_200_OK)
+
+            payload = utils.get_payload(
+                request,
+                message="You do not have permission to access another user's followups.",
+            )
+            return Response(data=payload, status=status.HTTP_403_FORBIDDEN)
+
+        except PageNotFound as pnf:
+            payload = utils.get_payload(
+                request,
+                detail=[],
+                message=f"{pnf}",
+            )
+            return Response(data=payload, status=status.HTTP_404_NOT_FOUND)
+
+        except Exception as e:
+            payload = utils.get_payload(
+                request,
+                message="An un-expected error occurse.",
+            )
+            return Response(data=payload, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class PendingLeadsAPIView(APIView):
+
+    authentication_classes = [
+        JWTAuthentication
+    ]  # check for user is autnenticated or not.
+    permission_classes = [CustomPermission]  # check for user has permissions or not
+
+    def get(self, request):
+        user_id = request.GET.get("user_id", None)
+        lead_status = "PENDING"
+
+        pending_leads_permission = FollowUpPermissions()
+
+        try:
+            pending_leads_qs = LeadRemark.objects.filter(
+                lead_status=lead_status, user_id=user_id
+            )
+
+            if pending_leads_permission.has_object_permission(
+                request, None, pending_leads_qs
+            ):
+                paginated_pending_leads_qs = pagination.paginate_queryset(
+                    pending_leads_qs, request
+                )
+                serialized_pending_leads_data = PendingLeadsSerializer(
+                    paginated_pending_leads_qs, many=True
+                ).data
+
+                payload = utils.get_payload(
+                    request,
+                    detail=serialized_pending_leads_data,
+                    message="Pending List",
+                    extra_information=pagination.get_paginated_response(
+                        data=serialized_pending_leads_data
+                    ),
+                )
+                return Response(data=payload, status=status.HTTP_200_OK)
+
+            payload = utils.get_payload(
+                request,
+                detail=[],
+                message="You do not have permission to access another user's pending lead.",
+            )
+            return Response(data=payload, status=status.HTTP_403_FORBIDDEN)
+
+        except PageNotFound as pnf:
+            payload = utils.get_payload(
+                request,
+                detail=[],
+                message=f"{pnf}",
+            )
+            return Response(data=payload, status=status.HTTP_404_NOT_FOUND)
+
+        except Exception as e:
+            print("Error: ", e)
+            payload = utils.get_payload(
+                request,
+                detail=[],
+                message="An un-expected error occurse.",
+            )
+            return Response(data=payload, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ReferredLeadsAPIView(APIView):
+
+    authentication_classes = [
+        JWTAuthentication
+    ]  # check for user is autnenticated or not.
+    permission_classes = [CustomPermission]  # check for user has permissions or not
+
+    def get(self, request):
+        user_id = request.GET.get("user_id", None)
+        lead_status = "REFERRED"
+        referred_leads_permission = FollowUpPermissions()
+
+        try:
+            referred_leads_qs = LeadRemark.objects.filter(
+                lead_status=lead_status, user_id=user_id
+            )
+            AssignedTO.objects.get()
+            # for i in referred_leads_qs:
+            #     print(i.lead.assigned_by)
+            # print("REFERRED LEADS: ", referred_leads_qs.lead)
+            if referred_leads_permission.has_object_permission(
+                request, None, referred_leads_qs
+            ):
+                paginated_referred_leads_qs = pagination.paginate_queryset(
+                    referred_leads_qs, request
+                )
+                serialized_referred_leads_data = ReferredLeadsSerializer(
+                    paginated_referred_leads_qs, many=True
+                ).data
+
+                payload = utils.get_payload(
+                    request,
+                    detail=serialized_referred_leads_data,
+                    message="Referred List",
+                    extra_information=pagination.get_paginated_response(
+                        data=serialized_referred_leads_data
+                    ),
+                )
+                return Response(data=payload, status=status.HTTP_200_OK)
+
+            payload = utils.get_payload(
+                request,
+                detail=[],
+                message="You do not have permission to access another user's referred lead.",
+            )
+            return Response(data=payload, status=status.HTTP_403_FORBIDDEN)
+
+        except PageNotFound as pnf:
+            payload = utils.get_payload(
+                request,
+                detail=[],
+                message=f"{pnf}",
+            )
+            return Response(data=payload, status=status.HTTP_404_NOT_FOUND)
+
+        except Exception as e:
+            print("Error: ", e)
+            payload = utils.get_payload(
+                request,
+                detail=[],
+                message="An un-expected error occurse.",
+            )
+            return Response(data=payload, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
