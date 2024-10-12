@@ -31,8 +31,7 @@ def custom_exception_handler(exc, context):
         extra_information = {}
         try:
             # print("Message: ", exc.detail)
-            
-            if isinstance(exc, ValidationError):
+            if isinstance(exc, ValidationError):    
                 
                 if isinstance(exc.detail, dict):
                     detail = _flatten_validation_errors(exc.detail)  # Flatten errors
@@ -86,10 +85,11 @@ def custom_exception_handler(exc, context):
             )
             
         except Exception as e:
+            message=f"None: {exc}"
             payload = utils.get_payload(
                 request=request,
                 detail={},
-                message=exc,
+                message=message,
                 extra_information=extra_information,
             )
 

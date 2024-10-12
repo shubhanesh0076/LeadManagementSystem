@@ -100,7 +100,6 @@ class LeadRemark(models.Model):
         ("QUALIFIED", "QUALIFIED"),
         ("UNQUALIFIED", "UNQUALIFIED"),
         ("LOST", "LOST"),
-        ("CONVERTED", "CONVERTED"),
         ("COMPLETED", "COMPLETED"),
     )
     

@@ -607,71 +607,51 @@ class PendingLeadsSerializer(serializers.ModelSerializer):
 
 class ReferredLeadsSerializer(serializers.ModelSerializer):
 
-    contact_no = serializers.SerializerMethodField()
-    user = serializers.SerializerMethodField()
+    assign_to = serializers.SerializerMethodField()
+    assign_by = serializers.SerializerMethodField()
     lead = serializers.SerializerMethodField()
-    created_at = serializers.SerializerMethodField()
-    updated_at = serializers.SerializerMethodField()
+    assigned_at = serializers.SerializerMethodField()
 
     class Meta:
-        model = LeadRemark
-        fields = [
-            "id",
-            "contact_established",
-            "contact_status",
-            "lead_status",
-            "review",
-            "contact_no",
-            "time_spent_on_lead_in_min",
-            "created_at",
-            "updated_at",
-            "is_remarked",
-            "lead",
-            "user",
-        ]
+        model = AssignedTO
+        fields = ["id", "assign_to", "assign_by", "lead", "assigned_at"]
 
-    def get_contact_no(self, obj):
-        if obj is not None:
-            return obj.lead.contact_no
-        else:
+    def get_assign_to(self, obj):
+
+        try:
+            if obj is not None:
+                return obj.assign_to.email
+            else:
+                return None
+        except Exception as e:
             return None
 
-    def get_user(self, obj):
+    def get_assign_by(self, obj):
 
-        if not obj:
-            return None
-
-        elif obj.user.username:
-            return obj.user.username
-
-        elif obj.user.first_name:
-            return f"{obj.user.first_name} {obj.user.last_name}"
-        else:
+        try:
+            if obj is not None:
+                return obj.assign_by.email
+            else:
+                return None
+        except Exception as e:
             return None
 
     def get_lead(self, obj):
 
-        if not obj:
+        try:
+            if obj is not None:
+                return obj.lead.email
+            else:
+                return None
+        except Exception as e:
             return None
 
-        elif obj.lead.email:
-            return obj.lead.email
+    def get_assigned_at(self, obj):
 
-        elif obj.lead.first_name:
-            return f"{obj.lead.first_name} {obj.lead.last_name}"
-        else:
-            return None
-
-    def get_created_at(self, obj):
-
-        if obj is not None:
-            return utils.convert_into_desired_dtime_format(obj.updated_at)
-        else:
-            return None
-
-    def get_updated_at(self, obj):
-
-        if obj is not None:
-            return utils.convert_into_desired_dtime_format(obj.updated_at)
-        else:
+        try:
+            if obj is not None:
+                return utils.convert_into_desired_dtime_format(obj.assigned_at)
+            else:
+                return None
+        except Exception as e:
             return None

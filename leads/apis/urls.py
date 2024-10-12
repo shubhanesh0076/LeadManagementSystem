@@ -5,9 +5,7 @@ from leads.apis.views import (
     LeadRemarkAPIView,
     LeadRemarkHistoryAPIView,
     AssignLeadAPIVIew,
-    FollowUpAPIView,
-    PendingLeadsAPIView,
-    ReferredLeadsAPIView
+    StatusWiseLeadAPIView,
 )
 
 app_name = "leads-api"
@@ -18,8 +16,6 @@ urlpatterns = [
     path("remark/", LeadRemarkAPIView.as_view(), name="lead-remark"),
     path("remark-history/", LeadRemarkHistoryAPIView.as_view(), name="remark-history"),
     path("assign/", AssignLeadAPIVIew.as_view(), name="assign-leads"),
-    path('followups/', FollowUpAPIView.as_view(), name="follow-up"),
-    path('pending/', PendingLeadsAPIView.as_view(), name="pending-leads"),
-    path('referred/', ReferredLeadsAPIView.as_view(), name="referred-leads")
+    path('status-wise-lead/', StatusWiseLeadAPIView.as_view(), name="status-wise-lead")
     
 ]

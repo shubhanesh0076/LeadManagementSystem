@@ -1,6 +1,5 @@
-import re
+# import re
 from rest_framework.permissions import BasePermission
-
 
 class IsLeadOwnerOrAdmin(BasePermission):
     """
@@ -31,7 +30,7 @@ class IsLeadOwnerOrAdmin(BasePermission):
             return False  # Default to deny access
 
 
-class FollowUpPermissions(BasePermission):
+class LeadTypePermissions(BasePermission):
 
     def has_object_permission(self, request, view, obj):
         if request.user.is_superuser:
@@ -39,3 +38,5 @@ class FollowUpPermissions(BasePermission):
         elif request.user.id == int(request.GET.get("user_id")):
             return True
         return False
+
+    
