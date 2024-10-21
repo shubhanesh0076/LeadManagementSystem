@@ -1,4 +1,5 @@
 from django.utils import timezone
+import re
 from utilities import utils
 from info_bridge.models import DataBridge
 from rest_framework import serializers
@@ -14,7 +15,7 @@ from leads.models import (
 )
 from locations.models import Address
 from utilities.custom_exceptions import UnexpectedError
-from permissions.models import Role, UserRoleMapping
+from permissions.models import LeadsDistributions, Role, UserRoleMapping
 from django.db import transaction
 
 
@@ -614,7 +615,7 @@ class ReferredLeadsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = AssignedTO
-        fields = ["id", "assign_to", "assign_by", "lead", "assigned_at"]
+        fields = ["id", "assign_to", "assign_by", "lead", "lead_id", "assigned_at"]
 
     def get_assign_to(self, obj):
 
@@ -655,3 +656,36 @@ class ReferredLeadsSerializer(serializers.ModelSerializer):
                 return None
         except Exception as e:
             return None
+
+
+class LeadDistributionSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = LeadsDistributions
+        fields = "__all__"
+
+    def create(self, validated_data):
+
+        user_id = self.context.get("user_id", None)
+        source = validated_data.get("source", [])
+        sub_source = validated_data.get("sub_source", [])
+        state = validated_data.get("state", [])
+
+        if user_id is None:
+            raise serializers.ValidationError("user_id can not be None.")
+
+        if validated_data.get("country", None) is None:
+            validated_data["country"] = "INDIA"
+
+        try:
+            return LeadsDistributions.objects.update_or_create(
+                user_id=user_id,
+                defaults={
+                    "source": source,
+                    "sub_source": sub_source,
+                    "state": state,
+                    "country": validated_data["country"],
+                },
+            )
+        except Exception as e:
+            raise UnexpectedError(f"{e}")

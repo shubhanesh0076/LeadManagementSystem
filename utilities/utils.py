@@ -1,7 +1,7 @@
+import jwt
 import re
 import random
 import string
-import jwt
 from typing import Any
 from utilities import constants as const
 from django.utils.text import slugify

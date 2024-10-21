@@ -6,6 +6,7 @@ from leads.apis.views import (
     LeadRemarkHistoryAPIView,
     AssignLeadAPIVIew,
     StatusWiseLeadAPIView,
+    LeadDistributionAPIView
 )
 
 app_name = "leads-api"
@@ -16,6 +17,6 @@ urlpatterns = [
     path("remark/", LeadRemarkAPIView.as_view(), name="lead-remark"),
     path("remark-history/", LeadRemarkHistoryAPIView.as_view(), name="remark-history"),
     path("assign/", AssignLeadAPIVIew.as_view(), name="assign-leads"),
-    path('status-wise-lead/', StatusWiseLeadAPIView.as_view(), name="status-wise-lead")
-    
+    path('status-wise-lead/', StatusWiseLeadAPIView.as_view(), name="status-wise-lead"),
+    path('distribution-to-user/', LeadDistributionAPIView.as_view(), name='lead-distribution')
 ]

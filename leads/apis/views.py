@@ -1,4 +1,3 @@
-# import django.core.exceptions
 from django.utils import timezone
 from django.db.models import Q
 from rest_framework.views import APIView
@@ -8,14 +7,8 @@ from utilities import utils, pagination
 from utilities.custom_exceptions import LeadAlreadyAttemptedException
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from permissions.custom_permissions import CustomPermission
-from leads.models import (
-    AssignedTO,
-    FollowUp,
-    LeadRemark,
-    LeadRemarkHistory,
-    OptimizedAddressView,
-    StudentLeads,
-)
+from leads.models import (AssignedTO, FollowUp, LeadRemark, LeadRemarkHistory,
+    OptimizedAddressView, ParentsInfo, StudentLeads)
 from info_bridge.models import DataBridge
 from leads.apis.serializers import (
     StudentLeadsSerializer,
@@ -25,6 +18,7 @@ from leads.apis.serializers import (
     FollowUpSerializer,
     PendingLeadsSerializer,
     ReferredLeadsSerializer,
+    LeadDistributionSerializer,
 )
 from utilities.custom_exceptions import UnexpectedError, PageNotFound
 from django.db.models import Count
@@ -32,6 +26,7 @@ from django.db import connection, transaction
 from leads.apis.lead_permission import IsLeadOwnerOrAdmin, LeadTypePermissions
 from LMS.settings import AUTH_PASSWORD_VALIDATORS
 from utilities.utils import StandardResultsSetPagination
+from permissions.models import LeadsDistributions
 
 
 class DynamicLeadFilterAPIView(APIView):
@@ -64,84 +59,85 @@ class DynamicLeadFilterAPIView(APIView):
     permission_classes = [CustomPermission]
 
     def get(self, request):
-        source = request.GET.get("source", None)
-        sub_source = request.GET.get("sub_source", None)
-        country = request.GET.get("country", None)
-        state = request.GET.get("state", None)
-        city = request.GET.get("city", None)
-        school = request.GET.get("school", None)
+        source = request.GET.get("source")
+        sub_source = request.GET.get("sub_source")
+        country = "INDIA"  # Assuming fixed country
+        state = request.GET.get("state")
+        city = request.GET.get("city")
+        school = request.GET.get("school")
 
-        if source and not any([sub_source, country, state, city, school]):
-            sub_source_qs = (
-                DataBridge.objects.filter(source=source)
-                .values_list("sub_source", flat=True)
-                .distinct()
-            )
+        # Superuser bypasses permissions
+        if not request.user.is_superuser:
+            lead_distribution_qs = LeadsDistributions.objects.filter(user_id=request.user.id)
+            if not lead_distribution_qs.exists():
+                payload = utils.get_payload(request, message="There are no leads in your quotas.")
+                return Response(data=payload, status=status.HTTP_200_OK)
+
+            # Extract user permission data
+            user_permission = lead_distribution_qs.first()
+            ld_source = user_permission.source or []
+            ld_sub_source = user_permission.sub_source or []
+            ld_state = user_permission.state or []
+            ld_city = user_permission.city or []
+            ld_school = user_permission.school or []
+            
+
+        # Helper function to build queryset filters dynamically
+        def filter_queryset():
+            filters = Q(country_name=country)
+            if source:
+                filters &= Q(source__in=ld_source if source in ld_source else [source])
+            if sub_source:
+                filters &= Q(sub_source__in=ld_sub_source  if sub_source in ld_sub_source else [sub_source])
+            if state:
+                filters &= Q(state_name__in=ld_state if state in ld_state else [state])
+            if city:
+                filters &= Q(city_name__in=ld_city if city in ld_city else [city])
+            if school:
+                filters &= Q(school__in=ld_school if school in ld_school else [school])
+            return filters
+
+        # Determine the appropriate queryset and response message
+        if source and not any([sub_source, state, city, school]):
+            if request.user.is_superuser or ld_sub_source is None or not ld_sub_source:
+                sub_source_qs = DataBridge.objects.filter(source=source).values_list("sub_source", flat=True).distinct()
+            else:
+                sub_source_qs = DataBridge.objects.filter(source__in=ld_source, sub_source__in=ld_sub_source).values_list("sub_source", flat=True).distinct()
             message = "Sub Source List"
-            payload = utils.get_payload(request, detail=sub_source_qs, message=message)
-            return Response(data=payload, status=status.HTTP_200_OK)
-
-        elif source and sub_source and not any([country, state, city, school]):
-            country_qs = (
-                OptimizedAddressView.objects.filter(
-                    source=source, sub_source=sub_source
-                )
-                .values_list("country_name", flat=True)
-                .distinct()
-            )
-            message = "Country List"
-            payload = utils.get_payload(
-                request, detail=country_qs, message="Country List."
-            )
-            return Response(data=payload, status=status.HTTP_200_OK)
-
-        elif source and sub_source and country and not any([state, city, school]):
-            state_qs = (
-                OptimizedAddressView.objects.filter(
-                    source=source, sub_source=sub_source, country_name=country
-                )
-                .values_list("state_name", flat=True)
-                .distinct()
-            )
+            detail = sub_source_qs
+            
+        elif source and sub_source and not any([state, city, school]):
+            if request.user.is_superuser or ld_state is None or not ld_state:
+                state_qs = OptimizedAddressView.objects.filter(filter_queryset()).values_list("state_name", flat=True).distinct()
+            else:
+                state_qs = OptimizedAddressView.objects.filter(filter_queryset(), state_name__in=ld_state).values_list("state_name", flat=True).distinct()
             message = "State List"
-            payload = utils.get_payload(request, detail=state_qs, message="State List.")
-            return Response(data=payload, status=status.HTTP_200_OK)
-
-        elif source and sub_source and country and state and not city and not school:
-            city_qs = (
-                OptimizedAddressView.objects.filter(
-                    source=source,
-                    sub_source=sub_source,
-                    country_name=country,
-                    state_name=state,
-                )
-                .values_list("city_name", flat=True)
-                .distinct()
-            )
+            detail = state_qs
+            
+        elif source and sub_source and state and not city and not school:
+            if request.user.is_superuser or ld_city or not ld_city:
+                city_qs = OptimizedAddressView.objects.filter(filter_queryset()).values_list("city_name", flat=True).distinct()
+            else:
+                city_qs = OptimizedAddressView.objects.filter(filter_queryset(), city_name__in=ld_city).values_list("city_name", flat=True).distinct()
             message = "City List"
-            payload = utils.get_payload(request, detail=city_qs, message=message)
-            return Response(data=payload, status=status.HTTP_200_OK)
-
-        elif source and sub_source and country and state and city and not school:
-            school_qs = (
-                OptimizedAddressView.objects.filter(
-                    source=source,
-                    sub_source=sub_source,
-                    country_name=country,
-                    state_name=state,
-                    city_name=city,
-                )
-                .values_list("school", flat=True)
-                .distinct()
-            )
+            detail = city_qs
+            
+        elif source and sub_source and state and city and not school:
+            if request.user.is_superuser or ld_school or not ld_school:
+                school_qs = OptimizedAddressView.objects.filter(filter_queryset()).values_list("school", flat=True).distinct()
+            else:
+                school_qs = OptimizedAddressView.objects.filter(filter_queryset(), school__in=ld_school).values_list("school", flat=True).distinct()
             message = "School List"
-            payload = utils.get_payload(request, detail=school_qs, message=message)
-            return Response(data=payload, status=status.HTTP_200_OK)
+            detail = school_qs
+            
+        else:
+            source_qs = DataBridge.objects.filter(source__in=ld_source, ).values_list("source", flat=True).distinct()
+            message = "Source List"
+            detail = source_qs
 
-        source_qs = DataBridge.objects.values_list("source", flat=True).distinct()
-        payload = utils.get_payload(request, detail=source_qs, message="Source List")
+        payload = utils.get_payload(request, detail=detail, message=message)
         return Response(data=payload, status=status.HTTP_200_OK)
-
+    
 
 class FetchLeadAPIView(APIView):
 
@@ -217,6 +213,35 @@ class FetchLeadAPIView(APIView):
             return Response(data=payload, status=status.HTTP_200_OK)
 
         else:
+            if not request.user.is_superuser:
+                lead_distribution_qs = LeadsDistributions.objects.filter(user_id=request.user.id)
+                
+                # Extract user permission data
+                user_permission = lead_distribution_qs.first()
+                ld_source = user_permission.source or []
+                ld_sub_source = user_permission.sub_source or []
+                ld_state = user_permission.state or []
+                ld_city = user_permission.city or []
+                ld_school = user_permission.school or []
+                
+                # check for lead permission...
+                message=None
+                if (source and ld_source):
+                    if source not in ld_source:
+                        message=f"You have no permission to access the {source} leads."
+                if sub_source and ld_sub_source:
+                    if sub_source not in ld_sub_source:
+                        message = f"You have no permission to access the {sub_source} leads."
+                if state and ld_state:
+                    if state not in ld_state:
+                        message = f"You have no permission to access the {state} leads."
+                if city and ld_city:
+                    if city not in ld_city:
+                        message = f"You have no permission to access the {city} leads."
+                if message:
+                    payload = utils.get_payload(request, message=message)
+                    return Response(data=payload, status=status.HTTP_403_FORBIDDEN)
+            
             query = self.get_query(source, sub_source, country, state, city, school)
             student_leads_qs = StudentLeads.objects.select_related(
                 "parents_info", "education_info", "general_info", "address"
@@ -224,10 +249,10 @@ class FetchLeadAPIView(APIView):
 
             if student_leads_qs.exists():
                 try:
+                    
+                    # db transaction start over here...
                     with transaction.atomic():
-                        # get the first student object...
                         first_student_obj = student_leads_qs.first()
-                        print("first lead: ", first_student_obj.id)
                         lead_remark_obj, is_created = LeadRemark.objects.get_or_create(
                             lead_id=first_student_obj.id,
                             defaults={
@@ -235,20 +260,19 @@ class FetchLeadAPIView(APIView):
                                 "user_id": request.user.id,
                             },
                         )
-
+                        
+                        
                         if is_created:
                             self.update_is_viewed_field(obj=first_student_obj)
                             serialized_student_details = StudentLeadsSerializer(
                                 first_student_obj, many=False
                             ).data
-
                             payload = utils.get_payload(
                                 request,
                                 detail=serialized_student_details,
                                 message="Student details.",
                             )
                             return Response(data=payload, status=status.HTTP_200_OK)
-
                         else:
                             raise LeadAlreadyAttemptedException(
                                 detail=f"This lead is already attempted by: {lead_remark_obj.user.email}. "
@@ -259,13 +283,10 @@ class FetchLeadAPIView(APIView):
                     return Response(data=payload, status=status.HTTP_409_CONFLICT)
 
                 except Exception as e:
-                    print("eRROR: ", e)
                     payload = utils.get_payload(
                         request, message="An unexpected error occurse."
                     )
-                    return Response(
-                        data=payload, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                    )
+                    return Response(data=payload, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
             payload = utils.get_payload(request, message="There is no leads.")
             return Response(data=payload, status=status.HTTP_404_NOT_FOUND)
@@ -288,7 +309,6 @@ class FetchLeadAPIView(APIView):
         )
 
         if st_serializer.is_valid():
-
             with transaction.atomic():
                 st_serializer.save()
             payload = utils.get_payload(request, message="Lead successfully updated.")
@@ -431,29 +451,42 @@ class StatusWiseLeadAPIView(APIView):
     def handle_pending(self, lead_status, user_id):
         pending_leads_qs = LeadRemark.objects.filter(
             lead_status=lead_status, user_id=user_id
-        ).order_by('-updated_at')
+        ).order_by("-updated_at")
         message = "Pending"
         return pending_leads_qs, message
 
     def handle_referred(self, lead_status, user_id):
         # Add operation for "REFERRED"
-        # LeadRemark.objects.filter(lead_status=lead_status, )
-        assigned_to_lead_qs = AssignedTO.objects.filter(assign_by__id=user_id).order_by('-assigned_at')
-        message="Assigned"
-        return assigned_to_lead_qs,message 
+        assigned_to_lead_qs = AssignedTO.objects.filter(assign_by__id=user_id).order_by(
+            "-assigned_at"
+        )
+        message = "Assigned"
+        return assigned_to_lead_qs, message
 
     def handle_rejected(self, lead_status, user_id):
         # Add operation for "REJECTED"
-        pass
+        un_qualified_ = "UNQUALIFIED"
+        lost_ = "LOST"
+        query = Q(lead_status=un_qualified_) | Q(lead_status=lost_)
+        rejected_lead_remark_qs = LeadRemark.objects.filter(
+            query, user_id=user_id
+        ).order_by("-updated_at")
+        message = "Rejected"
+
+        return rejected_lead_remark_qs, message
 
     def handle_completed(self, lead_status, user_id):
         # Add operation for "COMPLETED"
-        pass
+        completed_lead_qs = LeadRemark.objects.filter(
+            lead_status=lead_status, user_id=user_id
+        ).order_by("-updated_at")
+        message = "Completed"
+        return completed_lead_qs, message
 
     def handle_followup(self, lead_status, user_id):
         followup_leads = FollowUp.objects.filter(
             lead__lead_remark__lead_status=lead_status, follow_up_by_id=user_id
-        ).order_by('-follow_up_date')
+        ).order_by("-follow_up_date")
         message = "Followup"
         return followup_leads, message
 
@@ -473,8 +506,8 @@ class StatusWiseLeadAPIView(APIView):
         lead_serializers_dic = {
             "PENDING": PendingLeadsSerializer,
             "REFERRED": ReferredLeadsSerializer,
-            "REJECTED": FollowUpSerializer,
-            "COMPLETED": FollowUpSerializer,
+            "REJECTED": PendingLeadsSerializer,
+            "COMPLETED": PendingLeadsSerializer,
             "FOLLOWUP": FollowUpSerializer,
         }
 
@@ -526,129 +559,40 @@ class StatusWiseLeadAPIView(APIView):
             return Response(data=payload, status=status.HTTP_400_BAD_REQUEST)
 
 
-# class PendingLeadsAPIView(APIView):
+class LeadDistributionAPIView(APIView):
 
-#     authentication_classes = [
-#         JWTAuthentication
-#     ]  # check for user is autnenticated or not.
-#     permission_classes = [CustomPermission]  # check for user has permissions or not
+    authentication_classes = [
+        JWTAuthentication
+    ]  # check for user is autnenticated or not.
+    permission_classes = [CustomPermission]  # check for user has permissions or not
+    lead_distribution_serializer = LeadDistributionSerializer
 
-#     def get(self, request):
-#         user_id = request.GET.get("user_id", None)
-#         lead_status = "PENDING"
+    def post(self, request):
+        data = request.data
+        deserialized_lead_distribution = self.lead_distribution_serializer(
+            data=data, context={"user_id": data.get("user_id", None)}
+        )
+        if deserialized_lead_distribution.is_valid(raise_exception=True):
+            try:
+                deserialized_lead_distribution.save()
+                payload = utils.get_payload(
+                    request, message="Successfully distrubute the leads to user."
+                )
+                return Response(data=payload, status=status.HTTP_201_CREATED)
 
-#         pending_leads_permission = FollowUpPermissions()
+            except ValueError as ve:
+                payload = utils.get_payload(request, message=f"{ve}")
+                return Response(data=payload, status=status.HTTP_400_BAD_REQUEST)
 
-#         try:
-#             pending_leads_qs = LeadRemark.objects.filter(
-#                 lead_status=lead_status, user_id=user_id
-#             )
+            except UnexpectedError as e:
+                payload = utils.get_payload(
+                    request, message="An un-expected error occurse."
+                )
+                return Response(
+                    data=payload, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
 
-#             if pending_leads_permission.has_object_permission(
-#                 request, None, pending_leads_qs
-#             ):
-#                 paginated_pending_leads_qs = pagination.paginate_queryset(
-#                     pending_leads_qs, request
-#                 )
-#                 serialized_pending_leads_data = PendingLeadsSerializer(
-#                     paginated_pending_leads_qs, many=True
-#                 ).data
-
-#                 payload = utils.get_payload(
-#                     request,
-#                     detail=serialized_pending_leads_data,
-#                     message="Pending List",
-#                     extra_information=pagination.get_paginated_response(
-#                         data=serialized_pending_leads_data
-#                     ),
-#                 )
-#                 return Response(data=payload, status=status.HTTP_200_OK)
-
-#             payload = utils.get_payload(
-#                 request,
-#                 detail=[],
-#                 message="You do not have permission to access another user's pending lead.",
-#             )
-#             return Response(data=payload, status=status.HTTP_403_FORBIDDEN)
-
-#         except PageNotFound as pnf:
-#             payload = utils.get_payload(
-#                 request,
-#                 detail=[],
-#                 message=f"{pnf}",
-#             )
-#             return Response(data=payload, status=status.HTTP_404_NOT_FOUND)
-
-#         except Exception as e:
-#             print("Error: ", e)
-#             payload = utils.get_payload(
-#                 request,
-#                 detail=[],
-#                 message="An un-expected error occurse.",
-#             )
-#             return Response(data=payload, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-# class ReferredLeadsAPIView(APIView):
-
-#     authentication_classes = [
-#         JWTAuthentication
-#     ]  # check for user is autnenticated or not.
-#     permission_classes = [CustomPermission]  # check for user has permissions or not
-
-#     def get(self, request):
-#         user_id = request.GET.get("user_id", None)
-#         lead_status = "REFERRED"
-#         referred_leads_permission = FollowUpPermissions()
-
-#         try:
-#             referred_leads_qs = LeadRemark.objects.filter(
-#                 lead_status=lead_status, user_id=user_id
-#             )
-#             AssignedTO.objects.get()
-#             # for i in referred_leads_qs:
-#             #     print(i.lead.assigned_by)
-#             # print("REFERRED LEADS: ", referred_leads_qs.lead)
-#             if referred_leads_permission.has_object_permission(
-#                 request, None, referred_leads_qs
-#             ):
-#                 paginated_referred_leads_qs = pagination.paginate_queryset(
-#                     referred_leads_qs, request
-#                 )
-#                 serialized_referred_leads_data = ReferredLeadsSerializer(
-#                     paginated_referred_leads_qs, many=True
-#                 ).data
-
-#                 payload = utils.get_payload(
-#                     request,
-#                     detail=serialized_referred_leads_data,
-#                     message="Referred List",
-#                     extra_information=pagination.get_paginated_response(
-#                         data=serialized_referred_leads_data
-#                     ),
-#                 )
-#                 return Response(data=payload, status=status.HTTP_200_OK)
-
-#             payload = utils.get_payload(
-#                 request,
-#                 detail=[],
-#                 message="You do not have permission to access another user's referred lead.",
-#             )
-#             return Response(data=payload, status=status.HTTP_403_FORBIDDEN)
-
-#         except PageNotFound as pnf:
-#             payload = utils.get_payload(
-#                 request,
-#                 detail=[],
-#                 message=f"{pnf}",
-#             )
-#             return Response(data=payload, status=status.HTTP_404_NOT_FOUND)
-
-#         except Exception as e:
-#             print("Error: ", e)
-#             payload = utils.get_payload(
-#                 request,
-#                 detail=[],
-#                 message="An un-expected error occurse.",
-#             )
-#             return Response(data=payload, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        payload = utils.get_payload(
+            request, message=deserialized_lead_distribution.error_messages
+        )
+        return Response(data=payload, status=status.HTTP_400_BAD_REQUEST)

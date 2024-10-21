@@ -153,6 +153,11 @@
         "role_name": "bdms",
         "method": "GET",
         "endpoint": "/api/v1/leads/reffered/"
+    },
+    {
+        "role_name": "admin",
+        "method": "POST",
+        "endpoint": "/api/v1/leads/distribution-to-user/"
     }
 
 ]

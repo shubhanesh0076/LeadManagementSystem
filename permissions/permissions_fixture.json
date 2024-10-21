@@ -142,5 +142,11 @@
         "method": "GET",
         "endpoint": "/api/v1/leads/reffered/",
         "description": "This API used for get the reffered leads list."
+    },
+    {
+        "permission_name": "Lead Distribution",
+        "method": "POST",
+        "endpoint": "/api/v1/leads/distribution-to-user/",
+        "description": "This API used for Distribute the lead to Users."
     }
 ]

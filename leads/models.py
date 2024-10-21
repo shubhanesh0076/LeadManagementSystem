@@ -96,8 +96,6 @@ class LeadRemark(models.Model):
         ("PENDING", "PENDING"),
         ("FOLLOWUP", "FOLLOWUP"),
         ("REFERED", "REFERED"),
-        ("CONTACTED", "CONTACTED"),
-        ("QUALIFIED", "QUALIFIED"),
         ("UNQUALIFIED", "UNQUALIFIED"),
         ("LOST", "LOST"),
         ("COMPLETED", "COMPLETED"),
@@ -141,7 +139,11 @@ class LeadRemark(models.Model):
     is_follow_up=models.BooleanField(default=False)
     is_remarked=models.BooleanField(default=False)
 
-
+    class Meta:
+        indexes = [
+            models.Index(fields=["lead_status"])
+        ]
+        
 class LeadRemarkHistory(models.Model):
     CHOOSE_LEAD_STATUS = (
         ("PENDING", "PENDING"),
