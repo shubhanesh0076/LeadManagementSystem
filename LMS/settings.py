@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "info_bridge.apps.InfoBridgeConfig",
     "leads.apps.LeadsConfig",
     "locations.apps.LocationsConfig",
+    "notifications.apps.NotificationsConfig",
 
     # django third party apps
     "rest_framework",
