@@ -158,6 +158,16 @@
         "role_name": "admin",
         "method": "POST",
         "endpoint": "/api/v1/leads/distribution-to-user/"
+    },
+    {
+        "role_name": "bdms",
+        "method": "GET",
+        "endpoint": "/api/v1/leads/notifications/weekly/"
+    },
+    {
+        "role_name": "counsellor",
+        "method": "GET",
+        "endpoint": "/api/v1/leads/notifications/weekly/"
     }
 
 ]

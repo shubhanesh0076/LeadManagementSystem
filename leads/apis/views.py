@@ -336,7 +336,7 @@ class LeadRemarkAPIView(APIView):
     def post(self, request):
         data = request.data
         lead_id = data.get("lead_id", None)
-
+    
         if not lead_id:
             payload = utils.get_payload(
                 request, detail={}, message="Lead ID is required."
@@ -596,3 +596,27 @@ class LeadDistributionAPIView(APIView):
             request, message=deserialized_lead_distribution.error_messages
         )
         return Response(data=payload, status=status.HTTP_400_BAD_REQUEST)
+
+
+from rest_framework import generics
+from django.utils import timezone
+from datetime import timedelta
+from notifications.models import Notification
+from notifications.apis.serializers import NotificationSerializer
+from manage import main
+# from rest_framework.permissions import IsAuthenticated
+
+class WeeklyNotificationsView(APIView):
+    
+    authentication_classes = [
+        JWTAuthentication
+    ]  # check for user is autnenticated or not.
+    permission_classes = [CustomPermission]  # check for user has permissions or not
+    serializer_class = NotificationSerializer
+
+    def get(self, request):
+        now = timezone.now()
+        one_week_ago = now - timedelta(weeks=1)
+        qs = NotificationSerializer(Notification.objects.filter(user=self.request.user, created_at__gte=one_week_ago).order_by('-created_at'), many=True).data
+        payload = utils.get_payload(request, detail=qs, message="Notification List")
+        return Response(data=payload, status=status.HTTP_200_OK)

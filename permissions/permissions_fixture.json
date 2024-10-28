@@ -148,5 +148,11 @@
         "method": "POST",
         "endpoint": "/api/v1/leads/distribution-to-user/",
         "description": "This API used for Distribute the lead to Users."
+    },
+    {
+        "permission_name": "notification-weekly",
+        "method": "GET",
+        "endpoint": "/api/v1/leads/notifications/weekly/",
+        "description": "This API used for Distribute the lead to Users."
     }
 ]
