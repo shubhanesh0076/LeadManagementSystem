@@ -18,3 +18,8 @@ class DataBridge(models.Model):
     uploaded_by=models.ForeignKey(User, on_delete=models.CASCADE, related_name='upload_lead', default=None)
     lead_uploaded_at=models.DateTimeField(auto_now_add=True)
     
+    class Meta:
+        indexes = [
+            models.Index(fields=['source']),
+            models.Index(fields=['sub_source']),
+        ]

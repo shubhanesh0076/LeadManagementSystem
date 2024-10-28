@@ -133,6 +133,7 @@ class UserListSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
+            "id",
             "username",
             "name",
             "email",
@@ -251,15 +252,14 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             raise serializers.ValidationError(
                 detail={"message": "Invalid Credentials..."}
             )
-
         refresh = RefreshToken.for_user(user)
         access_token = refresh.access_token
-        user_role_mappers_qs = UserRoleMapping.objects.filter(user_id=user.id)
-        roles = (
-            [_role[0] for _role in user_role_mappers_qs.values_list("role__role_name")]
-            if user_role_mappers_qs.exists()
-            else []
-        )
+
+        # Use select_related to optimize the role fetching process
+        user_role_mappers_qs = UserRoleMapping.objects.filter(user_id=user.id).select_related('role')
+        
+        # Fetch the roles as a flat list of role names
+        roles = list(user_role_mappers_qs.values_list("role__role_name", flat=True))
 
         access_token["email"] = user.email
         access_token["roles"] = roles

@@ -1,3 +1,4 @@
+from rest_framework.exceptions import APIException
 # custom_exceptions.py
 
 class UnexpectedError(Exception):
@@ -17,3 +18,16 @@ class UnexpectedError(Exception):
         if self.original_exception:
             return f"UnexpectedError: {self.message} (Original exception: {self.original_exception})"
         return f"UnexpectedError: {self.message}"
+    
+
+
+class LeadAlreadyAttemptedException(APIException):
+    status_code = 409
+    default_detail = 'This lead has already been attempted by another user.'
+    default_code = 'lead_already_attempted'
+    
+
+class PageNotFound(APIException):
+    status_code = 404
+    default_detail = 'Invalid page. Please select a valid page number.'
+    default_code = 'lead_already_attempted'

@@ -84,22 +84,75 @@
         "description": "This is the API for Un-Assign role to the user."
     },
     {
-        "permission_name": "Testing 1",
+        "permission_name": "Fetch Lead",
         "method": "GET",
-        "endpoint": "/api/v1/roles/testing-v1/",
+        "endpoint": "/api/v1/leads/",
         "description": "This is the API for Un-Assign role to the user."
     },
     {
-        "permission_name": "Testing 2",
+        "permission_name": "Dynamic Lead Filter.",
+        "method": "GET",
+        "endpoint": "/api/v1/leads/dynamic-lead-filter/",
+        "description": "This API used for getting the source , sub_source, state, city, country, school of leads. there is dependies of fields."
+    },
+    {
+        "permission_name": ".",
+        "method": "GET",
+        "endpoint": "/api/v1/leads/dynamic-lead-filter/",
+        "description": "This API used for getting the source , sub_source, state, city, country, school of leads. there is dependies of fields."
+    },
+    {
+        "permission_name": "Update Leads",
         "method": "POST",
-        "endpoint": "/api/v1/roles/testing-v2/",
-        "description": "This is the API for Un-Assign role to the user."
+        "endpoint": "/api/v1/leads/",
+        "description": "This is the API for Update lead information."
     },
     {
-        "permission_name": "Testing 3",
+        "permission_name": "Lead Remark",
+        "method": "POST",
+        "endpoint": "/api/v1/leads/remark/",
+        "description": "This is the API for Update lead information."
+    },
+    {
+        "permission_name": "Lead Remark History",
         "method": "GET",
-        "endpoint": "/api/v1/roles/testing-v3/",
-        "description": "This is the API for Un-Assign role to the user."
+        "endpoint": "/api/v1/leads/remark-history/",
+        "description": "This is the API for Lead Remark History."
+    },
+    {
+        "permission_name": "Assign Lead",
+        "method": "POST",
+        "endpoint": "/api/v1/leads/assign/",
+        "description": "This is used for assigned the lead."
+    },
+    {
+        "permission_name": "FollowUp List",
+        "method": "GET",
+        "endpoint": "/api/v1/leads/followups/",
+        "description": "This API used for get the followup list."
+    },
+    {
+        "permission_name": "Pending Leads List",
+        "method": "GET",
+        "endpoint": "/api/v1/leads/pending/",
+        "description": "This API used for get the pending leads list."
+    },
+    {
+        "permission_name": "Reffered Leads List",
+        "method": "GET",
+        "endpoint": "/api/v1/leads/reffered/",
+        "description": "This API used for get the reffered leads list."
+    },
+    {
+        "permission_name": "Lead Distribution",
+        "method": "POST",
+        "endpoint": "/api/v1/leads/distribution-to-user/",
+        "description": "This API used for Distribute the lead to Users."
+    },
+    {
+        "permission_name": "notification-weekly",
+        "method": "GET",
+        "endpoint": "/api/v1/leads/notifications/weekly/",
+        "description": "This API used for Distribute the lead to Users."
     }
-    
 ]

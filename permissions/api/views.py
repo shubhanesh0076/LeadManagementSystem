@@ -288,7 +288,7 @@ class AssignPermissionToRoleAPIView(APIView):
             return Response(data=payload, status=status.HTTP_404_NOT_FOUND)
 
         payload = utils.get_payload(
-            request, detail=[], message="Role successfully assoigned to permissions."
+            request, detail=[], message="Role successfully assigned to permissions."
         )
         return Response(data=payload, status=status.HTTP_200_OK)
 
@@ -438,67 +438,4 @@ class UnAssignRoleToUser(APIView):
             detail={},
             message=f"Role un-assiged successfully, from {email}",
         )
-        return Response(data=payload, status=status.HTTP_200_OK)
-
-
-class TestingAPIView(APIView):
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [CustomPermission]
-
-    def get(self, request):
-        payload = utils.get_payload(request, detail={}, message="Permissions List.")
-        return Response(data=payload, status=status.HTTP_200_OK)
-
-
-class TestingAPIV2View(APIView):
-
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [CustomPermission]
-
-    def post(self, request):
-        payload = utils.get_payload(request, detail={}, message="Permissions List.")
-        return Response(data=payload, status=status.HTTP_200_OK)
-
-
-class TestingAPIV3View(APIView):
-
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [CustomPermission]
-
-    def get(self, request):
-        payload = utils.get_payload(request, detail={}, message="Permissions List.")
-        return Response(data=payload, status=status.HTTP_200_OK)
-
-
-class TestingAPIV4View(APIView):
-
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [CustomPermission]
-
-    def delete(self, request):
-        payload = utils.get_payload(request, detail={}, message="Permissions List.")
-        return Response(data=payload, status=status.HTTP_200_OK)
-
-
-class TestingAPIV5View(APIView):
-
-    def patch(self, request):
-        payload = utils.get_payload(request, detail={}, message="Permissions List.")
-        return Response(data=payload, status=status.HTTP_200_OK)
-
-
-class TestingAPIV6View(APIView):
-
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [CustomPermission]
-    
-    def get(self, request):
-        payload = utils.get_payload(request, detail={}, message="Permissions List.")
-        return Response(data=payload, status=status.HTTP_200_OK)
-
-
-class TestingAPIV7View(APIView):
-
-    def post(self, request):
-        payload = utils.get_payload(request, detail={}, message="Permissions List.")
         return Response(data=payload, status=status.HTTP_200_OK)

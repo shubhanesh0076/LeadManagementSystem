@@ -2,11 +2,11 @@
 
 import pandas as pd
 from django.db import transaction
-from info_bridge.models import DataBridge
+# from info_bridge.models import DataBridge
 from leads.models import StudentLeads, ParentsInfo
 from locations.models import Address, Country, State, City
 from utilities.custom_exceptions import UnexpectedError
-from openpyxl import load_workbook
+# from openpyxl import load_workbook
 
 
 class DataProcessor:

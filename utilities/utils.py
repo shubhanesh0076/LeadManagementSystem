@@ -1,7 +1,7 @@
+import jwt
 import re
 import random
 import string
-import jwt
 from typing import Any
 from utilities import constants as const
 from django.utils.text import slugify
@@ -10,7 +10,7 @@ from datetime import datetime
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.exceptions import NotFound
-
+from utilities.custom_exceptions import PageNotFound
 
 class Utils:
 
@@ -91,6 +91,12 @@ class Utils:
     ):
         return datetime.strftime(obj, datetime_format)
 
+    def datetime_difference(self, start_timestamp, end_timestamp):
+        "returns the time difference between two timestamps in Min."
+        # if start_time or end_time is None:
+        #     raise "timestamp can not be None."
+        return (end_timestamp - start_timestamp).total_seconds() // 60
+
 
 class CustomPageNumberPagination(PageNumberPagination):
     page_size = const.page_size
@@ -115,7 +121,7 @@ class CustomPageNumberPagination(PageNumberPagination):
             return super().paginate_queryset(queryset, request, view)
         except NotFound:
             # Handle the case where the requested page is invalid
-            raise NotFound(detail="Invalid page. Please select a valid page number.")
+            raise PageNotFound(detail="Invalid page. Please select a valid page number, There is no more data.")
 
     def get_custom_error_response(self):
         return Response(

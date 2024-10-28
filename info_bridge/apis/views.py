@@ -16,7 +16,7 @@ from django.db import transaction
 from django.db.models import F
 from rest_framework.exceptions import NotFound
 from django.core.exceptions import ObjectDoesNotExist
-from django.shortcuts import get_object_or_404
+# from django.shortcuts import get_object_or_404
 
 
 class DataBridgeAPIView(APIView):
@@ -121,7 +121,7 @@ class DataBridgeAPIView(APIView):
         try:
             with transaction.atomic():
                 try:
-                    data_bridge_obj = get_object_or_404(DataBridge, file_name=file_name)
+                    data_bridge_obj = DataBridge.objects.get(file_name=file_name)
                     student_leads_qs = StudentLeads.objects.filter(
                         uploaded_id=data_bridge_obj.id, is_attempted=False
                     )

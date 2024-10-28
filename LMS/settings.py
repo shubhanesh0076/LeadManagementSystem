@@ -43,14 +43,17 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    
     # Django local app
     "accounts.apps.AccountsConfig",
     "permissions.apps.PermissionsConfig",
     "info_bridge.apps.InfoBridgeConfig",
     "leads.apps.LeadsConfig",
     "locations.apps.LocationsConfig",
-
+    "notifications.apps.NotificationsConfig",
+    
     # django third party apps
+    "channels",
     "rest_framework",
     "rest_framework_simplejwt",
 ]
@@ -84,7 +87,8 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "LMS.wsgi.application"
+# WSGI_APPLICATION = "LMS.wsgi.application"  # WSGI
+ASGI_APPLICATION = "LMS.asgi.application"  # your_project_name.routing.application
 
 
 # Database
@@ -102,17 +106,27 @@ DATABASES = {
     }
 }
 
+# CHANNLE REDIS LAYER:
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [(os.getenv("REDIS_HOST"), os.getenv("REDIS_PORT"))],
+        },
+    },
+}
+
 
 REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "LMS.custom_exception_handler.custom_exception_handler",
     "DEFAULT_AUTHENTICATION_CLASSES": [
         # "rest_framework_simplejwt.authentication.JWTAuthentication"
     ],
-    'DEFAULT_PERMISSION_CLASSES': [
+    "DEFAULT_PERMISSION_CLASSES": [
         # 'rest_framework.permissions.IsAuthenticated',  # Default setting
         # 'permissions.custom_permissions.CustomPermission',        # Add custom permission here
     ],
-    'DEFAULT_PAGINATION_CLASS': 'utilities.utils.StandardResultsSetPagination',
+    "DEFAULT_PAGINATION_CLASS": "utilities.utils.StandardResultsSetPagination",
     # 'PAGE_SIZE': 10
 }
 

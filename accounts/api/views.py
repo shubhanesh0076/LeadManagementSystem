@@ -192,6 +192,7 @@ class UsersAPIView(APIView):
     user_obj = User.objects
 
     def get(self, request):
+
         """
         Handle GET requests for retrieving users.
 
@@ -207,16 +208,6 @@ class UsersAPIView(APIView):
             requested user or page is not found, appropriate error messages are returned.
         """
 
-        # # Prefetch roles for each user and store them in the 'roles' attribute
-        from leads.models import StudentLeads, ParentsInfo
-        from locations.models import Address
-        from info_bridge.models import DataBridge
-        ParentsInfo.objects.all().delete()
-        Address.objects.all().delete()
-        StudentLeads.objects.all().delete()
-        DataBridge.objects.all().delete()
-
-        # print("Lead Count: ", lead_count)
         slug = request.GET.get("slug", None)
         if not slug:
             users_with_roles = User.objects.prefetch_related(

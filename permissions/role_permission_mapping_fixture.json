@@ -72,12 +72,7 @@
     {
         "role_name": "counsellor",
         "method": "GET",
-        "endpoint": "/api/v1/roles/testing-v1/"
-    },
-    {
-        "role_name": "counsellor",
-        "method": "POST",
-        "endpoint": "/api/v1/roles/testing-v2/"
+        "endpoint": "/api/v1/leads/"
     },
     {
         "role_name": "bdms",
@@ -88,5 +83,91 @@
         "role_name": "bdms",
         "method": "GET",
         "endpoint": "/api/v1/roles/testing-v6/"
+    },
+    {
+        "role_name": "counsellor",
+        "method": "GET",
+        "endpoint": "/api/v1/leads/dynamic-lead-filter/"
+    },
+    {
+        "role_name": "counsellor",
+        "method": "POST",
+        "endpoint": "/api/v1/leads/"
+    },
+    {
+        "role_name": "counsellor",
+        "method": "POST",
+        "endpoint": "/api/v1/leads/remark/"
+    },
+    {
+        "role_name": "bdms",
+        "method": "POST",
+        "endpoint": "/api/v1/leads/"
+    },
+    {
+        "role_name": "bdms",
+        "method": "POST",
+        "endpoint": "/api/v1/leads/remark/"
+    },
+    {
+        "role_name": "bdms",
+        "method": "GET",
+        "endpoint": "/api/v1/leads/remark-history/"
+    },
+    {
+        "role_name": "counsellor",
+        "method": "GET",
+        "endpoint": "/api/v1/leads/remark-history/"
+    },
+    {
+        "role_name": "counsellor",
+        "method": "POST",
+        "endpoint": "/api/v1/leads/assign/"
+    },
+    {
+        "role_name": "counsellor",
+        "method": "GET",
+        "endpoint": "/api/v1/leads/followups/"
+    },
+    {
+        "role_name": "bdms",
+        "method": "GET",
+        "endpoint": "/api/v1/leads/followups/"
+    },
+    {
+        "role_name": "counsellor",
+        "method": "GET",
+        "endpoint": "/api/v1/leads/pending/"
+    },
+    {
+        "role_name": "bdms",
+        "method": "GET",
+        "endpoint": "/api/v1/leads/pending/"
+    },
+    {
+        "role_name": "counsellor",
+        "method": "GET",
+        "endpoint": "/api/v1/leads/reffered/"
+    },
+    {
+        "role_name": "bdms",
+        "method": "GET",
+        "endpoint": "/api/v1/leads/reffered/"
+    },
+    {
+        "role_name": "admin",
+        "method": "POST",
+        "endpoint": "/api/v1/leads/distribution-to-user/"
+    },
+    {
+        "role_name": "bdms",
+        "method": "GET",
+        "endpoint": "/api/v1/leads/notifications/weekly/"
+    },
+    {
+        "role_name": "counsellor",
+        "method": "GET",
+        "endpoint": "/api/v1/leads/notifications/weekly/"
     }
+
 ]

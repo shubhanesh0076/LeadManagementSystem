@@ -1,9 +1,7 @@
-# permissions.py
+import re
 from rest_framework.permissions import BasePermission
 from utilities import utils
 from permissions.models import RoleCustomPermissionMapping
-# from rest_framework.response import Response
-# from rest_framework import status
 from rest_framework.exceptions import PermissionDenied, NotAuthenticated
 
 
@@ -23,6 +21,12 @@ class CustomPermission(BasePermission):
         return decoded_token["roles"]
 
     def get_current_endpoint(self, request):
+        current_endpoint = request.get_full_path()
+        regrx_pattern = r"(/[^/?]+(?:/[^/?]*)*)"
+        match = re.match(regrx_pattern, current_endpoint)
+
+        if match:
+            return match.group(1)
         return request.get_full_path()
 
     def is_permitted(self, roles: list, current_endppoint: str) -> bool:
@@ -57,5 +61,7 @@ class CustomPermission(BasePermission):
             )
 
             if not has_permission:
-                raise PermissionDenied(detail='You do not have permission to access this resource.')
+                raise PermissionDenied(
+                    detail="You do not have permission to access this resource."
+                )
         return True
